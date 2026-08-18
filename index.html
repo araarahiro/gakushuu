@@ -19,44 +19,80 @@
   <h1 class="text-2xl font-bold text-center mb-4">🎧 音声一問一答ドリル</h1>
 
   <!-- 設定画面 -->
-  <div id="setupView" class="bg-white rounded-lg shadow p-5 space-y-4">
-    <div>
-      <label class="block text-sm font-medium mb-1">Excelファイル（A:日本語 / B:英語 / C:例文の日本語 / D:例文の英語 / E:出題数 / F:正解数 / G:不正解数）</label>
-      <input type="file" id="fileInput" accept=".xlsx,.xls" class="w-full border rounded p-2">
-      <p class="text-xs text-gray-500 mt-1">1行目は見出しとして読み飛ばします。E〜G列は空欄でも構いません。</p>
+  <div id="setupView" class="space-y-4">
+
+    <!-- アプリ内の問題集 -->
+    <div class="bg-white rounded-lg shadow p-5 space-y-3">
+      <h2 class="font-bold text-lg">📚 アプリ内の問題集</h2>
+      <div class="flex gap-2 flex-wrap items-center">
+        <select id="bookSelect" class="border rounded p-2 text-sm flex-grow min-w-[12rem]"></select>
+        <button id="useBookBtn" class="px-3 py-2 bg-blue-600 text-white rounded text-sm">選ぶ</button>
+        <button id="renameBookBtn" class="px-3 py-2 bg-gray-500 text-white rounded text-sm">名前変更</button>
+        <button id="delBookBtn" class="px-3 py-2 bg-red-500 text-white rounded text-sm">削除</button>
+      </div>
+      <p id="bookMsg" class="text-sm text-gray-600"></p>
     </div>
-    <div class="flex flex-wrap items-end gap-4">
-      <div>
-        <label class="block text-sm font-medium mb-1">今回の出題数</label>
-        <input type="number" id="optCount" min="1" step="1" class="border rounded p-2 w-28 text-sm" placeholder="全部">
-        <p class="text-xs text-gray-500 mt-1" id="countHint">空欄なら全問</p>
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1">判定のゆるさ</label>
-        <select id="optTolerance" class="border rounded p-2 text-sm">
-          <option value="0.15">厳しめ</option>
-          <option value="0.25" selected>ふつう</option>
-          <option value="0.4">ゆるめ</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1">答えを見せる時間</label>
-        <select id="optShow" class="border rounded p-2 text-sm">
-          <option value="4000">短め（4秒）</option>
-          <option value="6000" selected>ふつう（6秒）</option>
-          <option value="9000">長め（9秒）</option>
-        </select>
+
+    <!-- 取り込み -->
+    <div class="bg-white rounded-lg shadow p-5 space-y-3">
+      <h2 class="font-bold text-lg">📥 Excelから取り込む</h2>
+      <p class="text-xs text-gray-500">A:日本語 / B:英語 / C:例文の日本語 / D:例文の英語 / E:出題数 / F:正解数 / G:不正解数（1行目は見出し）</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" class="w-full border rounded p-2 text-sm">
+      <div class="flex gap-2 flex-wrap">
+        <input type="text" id="bookName" class="border rounded p-2 text-sm flex-grow min-w-[10rem]" placeholder="問題集の名前（例：英検2級 単語）">
+        <button id="saveBookBtn" class="px-4 py-2 bg-emerald-600 text-white rounded text-sm font-bold disabled:bg-gray-400" disabled>アプリに保存</button>
       </div>
     </div>
-    <div class="flex flex-wrap gap-4 text-sm">
-      <label class="flex items-center gap-2"><input type="checkbox" id="optShuffle" checked>順番をシャッフルする</label>
-      <label class="flex items-center gap-2"><input type="checkbox" id="optAutoMic" checked>マイクを自動でONにする</label>
-      <label class="flex items-center gap-2"><input type="checkbox" id="optSpeak" checked>読み上げを使う</label>
-      <label class="flex items-center gap-2"><input type="checkbox" id="optExample" checked>不正解のとき例文も練習する</label>
-      <label class="flex items-center gap-2"><input type="checkbox" id="optRepeat" checked>例文を間違えたら発音練習をする</label>
+
+    <!-- バックアップ -->
+    <div class="bg-white rounded-lg shadow p-5 space-y-3">
+      <h2 class="font-bold text-lg">💾 バックアップ・受け渡し</h2>
+      <div class="flex gap-2 flex-wrap">
+        <button id="expJsonBtn" class="px-4 py-2 bg-teal-600 text-white rounded text-sm">全部まとめて書き出す（JSON）</button>
+        <label class="px-4 py-2 bg-indigo-600 text-white rounded text-sm cursor-pointer">
+          JSONを読み込む<input type="file" id="impJsonInput" accept=".json" class="hidden">
+        </label>
+        <button id="expXlsxBtn" class="px-4 py-2 bg-gray-600 text-white rounded text-sm">選択中をExcelで書き出す</button>
+      </div>
+      <p class="text-xs text-gray-500">JSONには全問題集と成績が入ります。別の端末で読み込めば同じ状態を再現できます。</p>
     </div>
-    <button id="startBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold disabled:bg-gray-400" disabled>ドリルを開始</button>
-    <div id="setupMsg" class="text-sm text-center text-gray-600"></div>
+
+    <!-- 出題設定 -->
+    <div class="bg-white rounded-lg shadow p-5 space-y-4">
+      <h2 class="font-bold text-lg">⚙️ 出題の設定</h2>
+      <div class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">今回の出題数</label>
+          <input type="number" id="optCount" min="1" step="1" class="border rounded p-2 w-28 text-sm" placeholder="全部">
+          <p class="text-xs text-gray-500 mt-1" id="countHint">空欄なら全問</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">判定のゆるさ</label>
+          <select id="optTolerance" class="border rounded p-2 text-sm">
+            <option value="0.15">厳しめ</option>
+            <option value="0.25" selected>ふつう</option>
+            <option value="0.4">ゆるめ</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">答えを見せる時間</label>
+          <select id="optShow" class="border rounded p-2 text-sm">
+            <option value="4000">短め（4秒）</option>
+            <option value="6000" selected>ふつう（6秒）</option>
+            <option value="9000">長め（9秒）</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-4 text-sm">
+        <label class="flex items-center gap-2"><input type="checkbox" id="optShuffle" checked>順番をシャッフルする</label>
+        <label class="flex items-center gap-2"><input type="checkbox" id="optAutoMic" checked>マイクを自動でONにする</label>
+        <label class="flex items-center gap-2"><input type="checkbox" id="optSpeak" checked>読み上げを使う</label>
+        <label class="flex items-center gap-2"><input type="checkbox" id="optExample" checked>不正解のとき例文も練習する</label>
+        <label class="flex items-center gap-2"><input type="checkbox" id="optRepeat" checked>例文を間違えたら発音練習をする</label>
+      </div>
+      <button id="startBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold disabled:bg-gray-400" disabled>ドリルを開始</button>
+      <div id="setupMsg" class="text-sm text-center text-gray-600"></div>
+    </div>
   </div>
 
   <!-- 演習画面 -->
@@ -69,7 +105,6 @@
         <button id="nextBtn" class="px-3 py-2 bg-slate-600 text-white rounded text-sm">⏩ 次へ</button>
         <button id="langBtn" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇬🇧 英語</button>
         <button id="micBtn" class="px-3 py-2 bg-green-600 text-white rounded text-sm">🎤 マイクON</button>
-        <button id="saveBtn" class="px-3 py-2 bg-teal-600 text-white rounded text-sm">💾 成績を保存</button>
         <button id="quitBtn" class="px-3 py-2 bg-gray-500 text-white rounded text-sm">終了</button>
       </div>
     </div>
@@ -100,7 +135,6 @@
     <div class="text-6xl">🏆</div>
     <h2 class="text-2xl font-bold text-green-600">全問クリア！</h2>
     <p id="doneStat" class="text-gray-700"></p>
-    <button id="saveBtn2" class="w-full py-3 bg-teal-600 text-white rounded-lg font-bold">💾 成績付きExcelをダウンロード</button>
     <button id="againBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold">同じ表でもう一度</button>
     <button id="backBtn" class="w-full py-3 bg-gray-500 text-white rounded-lg">最初の画面に戻る</button>
   </div>
@@ -208,7 +242,52 @@ function hitWord(text, list, maxLen) {
 const isPass   = t => hitWord(t, PASS_WORDS);
 const isRemind = t => hitWord(t, REMIND_WORDS);
 
-/* ===== 成績の保管（ブラウザ内に自動保存） ===== */
+/* ===== 問題集の保管庫 ===== */
+const Library = {
+  KEY: 'drill-books-v1',
+  books: {},          // { 名前: [ {jp,en,exJp,exEn,tries,ok,ng}, ... ] }
+  current: '',
+  load() {
+    try { this.books = JSON.parse(localStorage.getItem(this.KEY) || '{}'); }
+    catch (e) { this.books = {}; }
+  },
+  save() {
+    try { localStorage.setItem(this.KEY, JSON.stringify(this.books)); return true; }
+    catch (e) { alert('保存できませんでした（容量オーバーの可能性）：' + e.message); return false; }
+  },
+  names() { return Object.keys(this.books).sort(); },
+  put(name, items) {
+    this.books[name] = items.map(x => ({
+      jp: x.jp, en: x.en, exJp: x.exJp, exEn: x.exEn,
+      tries: x.tries || 0, ok: x.ok || 0, ng: x.ng || 0
+    }));
+    return this.save();
+  },
+  remove(name) { delete this.books[name]; this.save(); },
+  // 現在使っている問題集に成績を書き戻す
+  syncCurrent() {
+    if (this.current && this.books[this.current]) this.put(this.current, loaded);
+  },
+  refreshUI() {
+    const sel = $('bookSelect');
+    const names = this.names();
+    sel.innerHTML = '';
+    if (!names.length) {
+      sel.innerHTML = '<option value="">（まだ保存されていません）</option>';
+    } else {
+      names.forEach(n => {
+        const o = document.createElement('option');
+        o.value = n;
+        o.textContent = `${n}（${this.books[n].length}問）`;
+        sel.appendChild(o);
+      });
+      if (this.current) sel.value = this.current;
+    }
+  }
+};
+Library.load();
+
+/* ===== 成績の保管 ===== */
 const Stats = {
   KEY: 'drill-stats-v2',
   data: {},
@@ -246,7 +325,7 @@ const S = {
 const Speaker = {
   ready: 'speechSynthesis' in window,
   unlocked: false, speaking: false, session: 0,
-  rate: 0.95,                              // ★読む速さ 0.8=ゆっくり
+  rate: 0.95,
   unlock() {
     if (!this.ready || this.unlocked) return;
     try {
@@ -265,7 +344,7 @@ const Speaker = {
     }
     const my = ++this.session;
     try { speechSynthesis.cancel(); } catch (e) {}
-    Voice.pause();                         // ★マイクは一時停止のみ（ONの意思は保つ）
+    Voice.pause();
     this.speaking = true;
     Voice.updateUI();
 
@@ -274,7 +353,7 @@ const Speaker = {
       if (finished || my !== this.session) return;
       finished = true;
       this.speaking = false;
-      setTimeout(() => Voice.resume(), 400);   // ★読み終わったら自動でマイク復帰
+      setTimeout(() => Voice.resume(), 400);
       if (onDone) onDone();
     };
     const step = () => {
@@ -290,7 +369,7 @@ const Speaker = {
         speechSynthesis.speak(u);
       } catch (e) { finish(); }
     };
-    setTimeout(finish, 25000);             // 保険
+    setTimeout(finish, 25000);
     step();
   }
 };
@@ -338,7 +417,7 @@ const Voice = {
     if (!this.rec || this.blocked || !this.micActive || Speaker.speaking) return;
     const now = Date.now();
     this.stamps = this.stamps.filter(t => now - t < 10000);
-    if (this.stamps.length >= 15) {        // 暴走防止の安全弁
+    if (this.stamps.length >= 15) {
       this.blocked = true; this.micActive = false; this.updateUI();
       alert('音声認識が繰り返し起動したため停止しました。ページを再読み込みしてください。');
       return;
@@ -352,15 +431,9 @@ const Voice = {
     this.micActive = true;
     this.launch();
   },
-  pause() {                                // 読み上げ中だけ止める
-    clearTimeout(this.timer);
-    try { this.rec && this.rec.stop(); } catch (e) {}
-  },
-  resume() {
-    if (Speaker.speaking) return;
-    this.launch();
-  },
-  stop() {                                 // 利用者が止める
+  pause() { clearTimeout(this.timer); try { this.rec && this.rec.stop(); } catch (e) {} },
+  resume() { if (!Speaker.speaking) this.launch(); },
+  stop() {
     this.micActive = false;
     clearTimeout(this.timer);
     try { this.rec && this.rec.stop(); } catch (e) {}
@@ -409,7 +482,7 @@ const Drill = {
     list.forEach(x => { x.remind = false; });
     if ($('optShuffle').checked) list.sort(() => Math.random() - 0.5);
     const n = parseInt($('optCount').value, 10);
-    if (n > 0) list = list.slice(0, n);        // ★出題数の指定
+    if (n > 0) list = list.slice(0, n);
     S.queue = list;
     S.correct = 0; S.wrong = 0; S.total = list.length;
     this.next();
@@ -418,10 +491,7 @@ const Drill = {
     $('progress').textContent = `残り ${new Set(S.queue).size} 問（出題待ち ${S.queue.length} 回）/ 全 ${S.total} 問`;
     $('score').textContent = `正解 ${S.correct} ・ 不正解 ${S.wrong}`;
   },
-  wait(ms, fn) {
-    clearTimeout(this.timer);
-    this.timer = setTimeout(fn, ms);
-  },
+  wait(ms, fn) { clearTimeout(this.timer); this.timer = setTimeout(fn, ms); },
   next() {
     clearTimeout(this.timer);
     S.locked = false; S.stage = 'word'; S.tries = 0;
@@ -464,7 +534,6 @@ const Drill = {
       if (S.tries >= 3) return this.exampleEnd(false);
       return;
     }
-    // 発音練習ステージ
     if (alts.some(t => Match.loose(t, S.cur.exEn, Math.max(S.tol, 0.4)))) return this.repeatEnd(true);
     if (alts.some(isPass)) return this.repeatEnd(false);
     S.tries++;
@@ -512,7 +581,7 @@ const Drill = {
     $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-amber-400';
     $('prompt').textContent = '📝 この例文を英語で言ってください';
     $('question').textContent = S.cur.exJp;
-    if ($('optAutoMic').checked) Voice.start();   // ★読み上げ後そのまま音声で答えられる
+    if ($('optAutoMic').checked) Voice.start();
     Speaker.speak(S.cur.exJp, 'ja-JP');
   },
   exampleEnd(ok) {
@@ -572,6 +641,7 @@ const Drill = {
     S.cur = null;
     Voice.stop();
     try { speechSynthesis.cancel(); } catch (e) {}
+    Library.syncCurrent();                       // ★成績を問題集に書き戻す
     $('drillView').classList.add('hidden');
     $('doneView').classList.remove('hidden');
     const rate = (S.correct + S.wrong) ? Math.round(S.correct / (S.correct + S.wrong) * 100) : 0;
@@ -579,9 +649,29 @@ const Drill = {
   }
 };
 
-/* ===== 読み込み・イベント ===== */
+/* ===== 問題集の読み込みと管理 ===== */
 let loaded = [];
-let loadedHeader = [];
+function makeItem(r) {
+  return {
+    jp:   String(r.jp   !== undefined ? r.jp   : r[0] || '').trim(),
+    en:   String(r.en   !== undefined ? r.en   : r[1] || '').trim(),
+    exJp: String(r.exJp !== undefined ? r.exJp : r[2] || '').trim(),
+    exEn: String(r.exEn !== undefined ? r.exEn : r[3] || '').trim(),
+    tries: Number(r.tries !== undefined ? r.tries : r[4]) || 0,
+    ok:    Number(r.ok    !== undefined ? r.ok    : r[5]) || 0,
+    ng:    Number(r.ng    !== undefined ? r.ng    : r[6]) || 0,
+    remind: false
+  };
+}
+function setLoaded(items, label) {
+  loaded = items.filter(x => x.jp && x.en);
+  loaded.forEach(x => Stats.attach(x));
+  $('setupMsg').textContent = `${label}：${loaded.length} 問を使用します。`;
+  $('optCount').max = loaded.length;
+  $('countHint').textContent = `空欄なら全${loaded.length}問`;
+  $('startBtn').disabled = loaded.length === 0;
+}
+
 $('fileInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -591,22 +681,10 @@ $('fileInput').addEventListener('change', (e) => {
       const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      loadedHeader = rows[0] || [];
-      loaded = rows.slice(1).map(r => ({
-        jp:   String(r[0] || '').trim(),
-        en:   String(r[1] || '').trim(),
-        exJp: String(r[2] || '').trim(),
-        exEn: String(r[3] || '').trim(),
-        tries: Number(r[4]) || 0,
-        ok:    Number(r[5]) || 0,
-        ng:    Number(r[6]) || 0,
-        remind: false
-      })).filter(x => x.jp && x.en);
-      loaded.forEach(x => Stats.attach(x));
-      $('setupMsg').textContent = `${loaded.length} 問を読み込みました。`;
-      $('optCount').max = loaded.length;
-      $('countHint').textContent = `空欄なら全${loaded.length}問`;
-      $('startBtn').disabled = loaded.length === 0;
+      Library.current = '';
+      setLoaded(rows.slice(1).map(makeItem), 'Excelから読み込み');
+      $('saveBookBtn').disabled = loaded.length === 0;
+      if (!$('bookName').value) $('bookName').value = file.name.replace(/\.[^.]+$/, '');
     } catch (err) {
       $('setupMsg').textContent = '読み込みに失敗しました：' + err.message;
     }
@@ -614,27 +692,124 @@ $('fileInput').addEventListener('change', (e) => {
   reader.readAsArrayBuffer(file);
 });
 
-function exportExcel() {
-  if (!loaded.length) { alert('先にExcelファイルを読み込んでください。'); return; }
-  const head = (loadedHeader.length >= 4 ? loadedHeader.slice(0, 4)
-                : ['日本語','英語','例文の日本語','例文の英語']);
-  const rows = [head.concat(['出題数','正解数','不正解数'])];
-  loaded.forEach(x => rows.push([x.jp, x.en, x.exJp, x.exEn, x.tries, x.ok, x.ng]));
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '単語');
+$('saveBookBtn').addEventListener('click', () => {
+  const name = ($('bookName').value || '').trim();
+  if (!name) { alert('問題集の名前を入力してください。'); return; }
+  if (Library.books[name] && !confirm(`「${name}」は既にあります。上書きしますか？`)) return;
+  if (Library.put(name, loaded)) {
+    Library.current = name;
+    Library.refreshUI();
+    $('bookMsg').textContent = `「${name}」をアプリに保存しました。次回からファイル選択なしで使えます。`;
+  }
+});
+
+$('useBookBtn').addEventListener('click', () => {
+  const name = $('bookSelect').value;
+  if (!name || !Library.books[name]) { alert('問題集を選んでください。'); return; }
+  Library.current = name;
+  setLoaded(Library.books[name].map(makeItem), `「${name}」`);
+  $('bookMsg').textContent = `「${name}」を選択中です。`;
+});
+
+$('renameBookBtn').addEventListener('click', () => {
+  const name = $('bookSelect').value;
+  if (!name || !Library.books[name]) return;
+  const nn = (prompt('新しい名前', name) || '').trim();
+  if (!nn || nn === name) return;
+  if (Library.books[nn] && !confirm(`「${nn}」は既にあります。上書きしますか？`)) return;
+  Library.books[nn] = Library.books[name];
+  delete Library.books[name];
+  Library.save();
+  if (Library.current === name) Library.current = nn;
+  Library.refreshUI();
+});
+
+$('delBookBtn').addEventListener('click', () => {
+  const name = $('bookSelect').value;
+  if (!name || !Library.books[name]) return;
+  if (!confirm(`「${name}」を削除します。よろしいですか？`)) return;
+  Library.remove(name);
+  if (Library.current === name) { Library.current = ''; }
+  Library.refreshUI();
+  $('bookMsg').textContent = `「${name}」を削除しました。`;
+});
+
+/* ===== エクスポート・インポート ===== */
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function stamp() {
   const d = new Date();
-  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-  XLSX.writeFile(wb, `単語表_成績_${stamp}.xlsx`);
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
 }
 
+$('expJsonBtn').addEventListener('click', () => {
+  Library.syncCurrent();
+  const data = { type: 'drill-backup', version: 1, savedAt: new Date().toISOString(),
+                 books: Library.books, stats: Stats.data };
+  download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+           `ドリル全データ_${stamp()}.json`);
+});
+
+$('impJsonInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!d || !d.books) throw new Error('この形式のファイルには対応していません');
+      let add = 0;
+      Object.keys(d.books).forEach(name => {
+        let key = name;
+        if (Library.books[key] && !confirm(`「${key}」は既にあります。上書きしますか？\n（キャンセルすると別名で追加します）`)) {
+          key = name + '（読込' + stamp() + '）';
+        }
+        Library.books[key] = d.books[name].map(makeItem);
+        add++;
+      });
+      Library.save();
+      if (d.stats) {                       // 成績は大きい方を採用して合流
+        Object.keys(d.stats).forEach(k => {
+          const a = Stats.data[k] || { tries: 0, ok: 0, ng: 0 }, b = d.stats[k];
+          Stats.data[k] = {
+            tries: Math.max(a.tries || 0, b.tries || 0),
+            ok:    Math.max(a.ok    || 0, b.ok    || 0),
+            ng:    Math.max(a.ng    || 0, b.ng    || 0)
+          };
+        });
+        Stats.save();
+      }
+      Library.refreshUI();
+      $('bookMsg').textContent = `${add} 件の問題集を読み込みました。`;
+    } catch (err) {
+      alert('読み込みに失敗しました：' + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+$('expXlsxBtn').addEventListener('click', () => {
+  if (!loaded.length) { alert('先に問題集を選ぶか、Excelを読み込んでください。'); return; }
+  const rows = [['日本語','英語','例文の日本語','例文の英語','出題数','正解数','不正解数']];
+  loaded.forEach(x => rows.push([x.jp, x.en, x.exJp, x.exEn, x.tries, x.ok, x.ng]));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '単語');
+  XLSX.writeFile(wb, `${Library.current || '単語表'}_成績_${stamp()}.xlsx`);
+});
+
+/* ===== 画面イベント ===== */
 $('startBtn').addEventListener('click', () => { Speaker.unlock(); Drill.begin(loaded); });
 $('replayBtn').addEventListener('click', () => Drill.replay());
 $('nextBtn').addEventListener('click', () => Drill.skip());
 $('micBtn').addEventListener('click', () => Voice.toggle());
 $('langBtn').addEventListener('click', () => Voice.toggleLang());
-$('saveBtn').addEventListener('click', exportExcel);
-$('saveBtn2').addEventListener('click', exportExcel);
 $('passBtn').addEventListener('click', () => {
   if (S.locked || !S.cur) return;
   if (S.stage === 'word') Drill.wordWrong(true);
@@ -645,6 +820,7 @@ $('quitBtn').addEventListener('click', () => {
   clearTimeout(Drill.timer);
   Voice.stop();
   try { speechSynthesis.cancel(); } catch (e) {}
+  Library.syncCurrent();
   $('drillView').classList.add('hidden');
   $('setupView').classList.remove('hidden');
 });
@@ -663,6 +839,7 @@ $('backBtn').addEventListener('click', () => {
   $('setupView').classList.remove('hidden');
 });
 
+Library.refreshUI();
 if (!Voice.setup()) {
   $('setupMsg').textContent = 'このブラウザは音声入力に対応していません（Chrome推奨）。テキスト入力でも使えます。';
 }

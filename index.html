@@ -410,6 +410,51 @@ if (!Voice.setup()) {
     return false;
   };
 })();
+// ★追加：問題文（日本語）を読み上げる
+const Speaker = {
+  ready: false,
+  enabled: true,
+
+  init() {
+    if (!('speechSynthesis' in window)) return;
+    this.ready = true;
+    speechSynthesis.getVoices(); // 初回の声リスト読み込み
+  },
+
+  speak(text, lang = 'ja-JP') {
+    if (!this.ready || !this.enabled || !text) return;
+    try {
+      speechSynthesis.cancel();
+
+      // 読み上げ中はマイクを止める（自分の声を誤認識しないため）
+      const micWasOn = !!(window.SpeechManager && SpeechManager.micActive);
+      if (micWasOn && SpeechManager.pause) SpeechManager.pause();
+      else if (micWasOn && SpeechManager.stop) SpeechManager.stop();
+
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.lang = lang;
+      u.rate = 0.95;
+      u.onend = u.onerror = () => {
+        if (micWasOn) {
+          setTimeout(() => {
+            if (SpeechManager.resume) SpeechManager.resume();
+            else if (SpeechManager.start) SpeechManager.start();
+          }, 400);
+        }
+      };
+      speechSynthesis.speak(u);
+    } catch (e) {
+      console.warn('読み上げ失敗', e);
+    }
+  }
+};
+Speaker.init();
+
+// スマホ対策：最初の画面タップで読み上げ機能を有効化する
+document.addEventListener('click', function once() {
+  try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {}
+  document.removeEventListener('click', once);
+}, { once: true });
 
 </script>
 </body>

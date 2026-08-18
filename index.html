@@ -21,15 +21,15 @@
   <!-- 設定画面 -->
   <div id="setupView" class="bg-white rounded-lg shadow p-5 space-y-4">
     <div>
-      <label class="block text-sm font-medium mb-1">Excelファイル（A:日本語 / B:英語 / C:使用例 / D:参考）</label>
+      <label class="block text-sm font-medium mb-1">Excelファイル（A:日本語 / B:英語 / C:例文の日本語 / D:例文の英語 / E:出題数 / F:正解数 / G:不正解数）</label>
       <input type="file" id="fileInput" accept=".xlsx,.xls" class="w-full border rounded p-2">
-      <p class="text-xs text-gray-500 mt-1">1行目は見出しとして読み飛ばします。</p>
+      <p class="text-xs text-gray-500 mt-1">1行目は見出しとして読み飛ばします。E〜G列は空欄でも構いません。</p>
     </div>
     <div class="flex flex-wrap gap-4 text-sm">
       <label class="flex items-center gap-2"><input type="checkbox" id="optShuffle" checked>順番をシャッフルする</label>
       <label class="flex items-center gap-2"><input type="checkbox" id="optAutoMic" checked>開始時にマイクをONにする</label>
-      <label class="flex items-center gap-2"><input type="checkbox" id="optSpeakJa" checked>問題（日本語）を読み上げる</label>
-      <label class="flex items-center gap-2"><input type="checkbox" id="optSpeakEn" checked>不正解のとき答えを英語で読む</label>
+      <label class="flex items-center gap-2"><input type="checkbox" id="optSpeak" checked>読み上げを使う</label>
+      <label class="flex items-center gap-2"><input type="checkbox" id="optExample" checked>不正解のとき例文も練習する</label>
     </div>
     <div>
       <label class="block text-sm font-medium mb-1">判定のゆるさ</label>
@@ -48,23 +48,24 @@
     <div class="bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-3 text-sm">
       <span id="progress" class="font-bold"></span>
       <span id="score" class="text-gray-600"></span>
-      <div class="ml-auto flex gap-2">
+      <div class="ml-auto flex gap-2 flex-wrap">
         <button id="replayBtn" class="px-3 py-2 bg-purple-600 text-white rounded text-sm">🔊 もう一度</button>
         <button id="langBtn" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇬🇧 英語</button>
         <button id="micBtn" class="px-3 py-2 bg-green-600 text-white rounded text-sm">🎤 マイクON</button>
+        <button id="saveBtn" class="px-3 py-2 bg-teal-600 text-white rounded text-sm">💾 成績を保存</button>
         <button id="quitBtn" class="px-3 py-2 bg-gray-500 text-white rounded text-sm">終了</button>
       </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-8 text-center">
-      <p class="text-xs text-gray-500 mb-2">この日本語を英語で答えてください</p>
+    <div id="stageBox" class="bg-white rounded-lg shadow p-8 text-center border-4 border-transparent">
+      <p id="prompt" class="text-xs text-gray-500 mb-2">この日本語を英語で答えてください</p>
       <p id="question" class="text-3xl font-bold text-gray-800 break-words"></p>
       <p id="heard" class="mt-4 text-sm text-gray-500 h-5"></p>
       <div id="judge" class="mt-4 text-6xl h-16"></div>
-      <div id="reveal" class="hidden mt-2 text-left bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+      <div id="reveal" class="hidden mt-2 text-left bg-amber-50 border-2 border-amber-300 rounded-lg p-4 space-y-1">
         <p class="text-lg"><span class="font-bold">正解：</span><span id="ansEn" class="text-blue-700 font-bold"></span></p>
-        <p id="ansEx" class="text-sm text-gray-700 mt-2"></p>
-        <p id="ansNote" class="text-sm text-gray-600 mt-1"></p>
+        <p id="ansExJp" class="text-sm text-gray-700"></p>
+        <p id="ansExEn" class="text-sm text-blue-700 font-bold"></p>
       </div>
     </div>
 
@@ -73,7 +74,7 @@
         <input type="text" id="textInput" class="flex-grow border rounded p-2" placeholder="キーボードで答える場合はここに入力（Enter）">
         <button id="passBtn" class="px-4 py-2 bg-yellow-500 text-white rounded font-bold">パス</button>
       </div>
-      <p class="text-xs text-gray-500 mt-2">声で「パス」「スキップ」「skip」「next」などと言っても同じです。</p>
+      <p class="text-xs text-gray-500 mt-2">声で「パス」「スキップ」なら不正解あつかい。「remind（リマインド）」と言うと、正解するまで2問先に出続けます。</p>
     </div>
   </div>
 
@@ -82,6 +83,7 @@
     <div class="text-6xl">🏆</div>
     <h2 class="text-2xl font-bold text-green-600">全問クリア！</h2>
     <p id="doneStat" class="text-gray-700"></p>
+    <button id="saveBtn2" class="w-full py-3 bg-teal-600 text-white rounded-lg font-bold">💾 成績付きExcelをダウンロード</button>
     <button id="againBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold">同じ表でもう一度</button>
     <button id="backBtn" class="w-full py-3 bg-gray-500 text-white rounded-lg">最初の画面に戻る</button>
   </div>
@@ -121,7 +123,6 @@ const Match = {
     }
     return prev[b.length];
   },
-  // 「～」や括弧を外した言い方の候補を作る
   variants(s) {
     const dropTilde = t => String(t || '').replace(/[～〜~]/g, ' ').replace(/\s+/g, ' ').trim();
     const dropParen = t => String(t || '')
@@ -148,7 +149,6 @@ const Match = {
       return this.lev(a, b) / Math.max(a.length, b.length) <= tol;
     });
   },
-  // 「～」「（  ）」の部分は言わなくても正解にする
   loose(input, answerText, tol) {
     if (this.base(input, answerText, tol)) return true;
     const answers = this.variants(answerText);
@@ -158,7 +158,6 @@ const Match = {
         if (this.base(i, a, tol)) return true;
       }
     }
-    // 末尾が「～」の答えは前半が言えていればOK（例：look for～ ← "look for it"）
     if (/[～〜~]\s*$/.test(String(answerText || ''))) {
       const head = this.norm(String(answerText).replace(/[～〜~]/g, ''));
       const said = this.norm(input);
@@ -174,10 +173,14 @@ const PASS_WORDS = [
   'しらない','知らない','知りません','こうさん','降参','ギブアップ','giveup','give up',
   'dunno','noidea','no idea',"i don't know",'i do not know','むり','無理','お手上げ'
 ];
-function isPass(text) {
+const REMIND_WORDS = [
+  'remind','remaind','rimaind','reminder','remind me','リマインド','りまいんど',
+  'リマインダー','りまいんだー','リマインドミー','覚える','おぼえる'
+];
+function hitWord(text, list, maxLen) {
   const a = Match.norm(text);
-  if (!a || a.length > 14) return false;
-  return PASS_WORDS.some(w => {
+  if (!a || a.length > (maxLen || 14)) return false;
+  return list.some(w => {
     const b = Match.norm(w);
     if (!b) return false;
     if (a === b) return true;
@@ -185,21 +188,48 @@ function isPass(text) {
     return b.length >= 4 && Match.lev(a, b) <= 1;
   });
 }
+const isPass   = t => hitWord(t, PASS_WORDS);
+const isRemind = t => hitWord(t, REMIND_WORDS);
+
+/* ===== 成績の保管（ブラウザ内に自動保存） ===== */
+const Stats = {
+  KEY: 'drill-stats-v2',
+  data: {},
+  load() {
+    try { this.data = JSON.parse(localStorage.getItem(this.KEY) || '{}'); }
+    catch (e) { this.data = {}; }
+  },
+  save() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  key(item) { return item.jp + '\u0001' + item.en; },
+  attach(item) {
+    const d = this.data[this.key(item)];
+    if (d) {
+      item.tries = Math.max(item.tries, d.tries || 0);
+      item.ok    = Math.max(item.ok,    d.ok    || 0);
+      item.ng    = Math.max(item.ng,    d.ng    || 0);
+    }
+  },
+  record(item, isCorrect) {
+    if (!item) return;
+    item.tries++;
+    if (isCorrect) item.ok++; else item.ng++;
+    this.data[this.key(item)] = { tries: item.tries, ok: item.ok, ng: item.ng };
+    this.save();
+  }
+};
+Stats.load();
 
 /* ===== 状態 ===== */
 const S = {
-  all: [], queue: [], cur: null,
-  correct: 0, wrong: 0, total: 0,
-  locked: false, tol: 0.25
+  all: [], queue: [], cur: null, stage: 'word', exTries: 0,
+  correct: 0, wrong: 0, total: 0, locked: false, tol: 0.25
 };
 
-/* ===== 読み上げ（音声合成） ===== */
+/* ===== 読み上げ ===== */
 const Speaker = {
   ready: 'speechSynthesis' in window,
-  unlocked: false,
-  speaking: false,
-  rate: 0.95,          // ★読む速さ。0.8=ゆっくり 1.2=速め
-  // スマホは一度ユーザー操作の中で喋らせないと以降無音になる
+  unlocked: false, speaking: false, session: 0,
+  rate: 0.95,                              // ★読む速さ 0.8=ゆっくり
   unlock() {
     if (!this.ready || this.unlocked) return;
     try {
@@ -209,35 +239,45 @@ const Speaker = {
       this.unlocked = true;
     } catch (e) {}
   },
-  speak(text, lang) {
-    if (!this.ready || !text) return;
-    try {
-      speechSynthesis.cancel();
-      const micWasOn = Voice.micActive;
-      if (micWasOn) Voice.stop();          // 読み上げ音を誤認識しないよう一旦停止
-      this.speaking = true;
-      Voice.updateUI();
-
-      const u = new SpeechSynthesisUtterance(String(text));
-      u.lang = lang || 'ja-JP';
-      u.rate = this.rate;
-
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        this.speaking = false;
-        if (micWasOn) setTimeout(() => Voice.start(), 400);
-        else Voice.updateUI();
-      };
-      u.onend = finish;
-      u.onerror = finish;
-      setTimeout(finish, 8000);            // 念のための保険
-      speechSynthesis.speak(u);
-    } catch (e) {
-      this.speaking = false;
-      console.warn('読み上げ失敗', e);
+  // list: 文字列 または [{text, lang}] の配列
+  speak(list, lang, onDone) {
+    if (typeof list === 'string') list = [{ text: list, lang: lang || 'ja-JP' }];
+    list = (list || []).filter(x => x && String(x.text || '').trim());
+    if (!this.ready || !$('optSpeak').checked || !list.length) {
+      if (onDone) setTimeout(onDone, 200);
+      return;
     }
+    const my = ++this.session;
+    try { speechSynthesis.cancel(); } catch (e) {}
+    const micWasOn = Voice.micActive;
+    if (micWasOn) Voice.stop();
+    this.speaking = true;
+    Voice.updateUI();
+
+    let i = 0, finished = false;
+    const finish = () => {
+      if (finished || my !== this.session) return;
+      finished = true;
+      this.speaking = false;
+      if (micWasOn) setTimeout(() => Voice.start(), 400);
+      else Voice.updateUI();
+      if (onDone) onDone();
+    };
+    const step = () => {
+      if (my !== this.session) return;
+      if (i >= list.length) return finish();
+      const it = list[i++];
+      try {
+        const u = new SpeechSynthesisUtterance(String(it.text));
+        u.lang = it.lang || 'ja-JP';
+        u.rate = this.rate;
+        u.onend = step;
+        u.onerror = step;
+        speechSynthesis.speak(u);
+      } catch (e) { finish(); }
+    };
+    setTimeout(finish, 20000);             // 保険
+    step();
   }
 };
 
@@ -253,7 +293,6 @@ const Voice = {
     rec.continuous = true;
     rec.interimResults = false;
     rec.maxAlternatives = 3;
-
     rec.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (!e.results[i].isFinal) continue;
@@ -262,14 +301,12 @@ const Voice = {
           const t = (e.results[i][k].transcript || '').trim();
           if (t) alts.push(t);
         }
-        if (alts.length) Drill.onSpeech(alts);
+        if (alts.length) Drill.onAnswer(alts, '聞こえた言葉');
       }
     };
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        this.blocked = true;
-        this.micActive = false;
-        this.updateUI();
+        this.blocked = true; this.micActive = false; this.updateUI();
         alert('マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。');
       }
     };
@@ -287,10 +324,7 @@ const Voice = {
     return true;
   },
   start() {
-    if (!this.rec) { alert('このブラウザは音声入力に対応していません（Chrome推奨）'); return; }
-    if (this.blocked) return;
-    if (Speaker.speaking) return;
-    // 起動が異常に繰り返された場合の安全弁
+    if (!this.rec || this.blocked || Speaker.speaking) return;
     const now = Date.now();
     this.stamps = this.stamps.filter(t => now - t < 10000);
     if (this.stamps.length >= 8) {
@@ -347,63 +381,129 @@ const Drill = {
   },
   restart() {
     S.queue = S.all.slice();
+    S.all.forEach(x => { x.remind = false; });
     if ($('optShuffle').checked) S.queue.sort(() => Math.random() - 0.5);
     S.correct = 0; S.wrong = 0; S.total = S.queue.length;
     this.next();
   },
+  hud() {
+    $('progress').textContent = `残り ${new Set(S.queue).size} 問（出題待ち ${S.queue.length} 回）/ 全 ${S.total} 問`;
+    $('score').textContent = `正解 ${S.correct} ・ 不正解 ${S.wrong}`;
+  },
   next() {
-    S.locked = false;
+    S.locked = false; S.stage = 'word'; S.exTries = 0;
     $('reveal').classList.add('hidden');
     $('judge').textContent = '';
     $('heard').textContent = '';
     $('textInput').value = '';
+    $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-transparent';
     if (S.queue.length === 0) return this.finish();
     S.cur = S.queue[0];
+    $('prompt').textContent = 'この日本語を英語で答えてください' + (S.cur.remind ? '（🔁 リマインド中）' : '');
     $('question').textContent = S.cur.jp;
-    $('progress').textContent = `残り ${S.queue.length} 問 / 全 ${S.total} 問`;
-    $('score').textContent = `正解 ${S.correct} ・ 不正解 ${S.wrong}`;
-    if ($('optSpeakJa').checked) Speaker.speak(S.cur.jp, 'ja-JP');   // ★問題を読み上げ
+    this.hud();
+    Speaker.speak(S.cur.jp, 'ja-JP');
   },
   replay() {
-    if (S.cur) Speaker.speak(S.cur.jp, 'ja-JP');
+    if (!S.cur) return;
+    if (S.stage === 'word') Speaker.speak(S.cur.jp, 'ja-JP');
+    else Speaker.speak(S.cur.exJp, 'ja-JP');
   },
-  onSpeech(alts) {
+  onAnswer(alts, label) {
     if (S.locked || !S.cur) return;
-    $('heard').textContent = '聞こえた言葉：' + alts[0];
-    if (alts.some(t => isPass(t))) return this.judgeWrong(true);
-    if (alts.some(t => Match.loose(t, S.cur.en, S.tol))) return this.judgeCorrect();
-    this.judgeWrong(false);
+    if (!Array.isArray(alts)) alts = [alts];
+    alts = alts.filter(t => String(t || '').trim());
+    if (!alts.length) return;
+    $('heard').textContent = (label || '入力') + '：' + alts[0];
+
+    if (S.stage === 'word') {
+      if (alts.some(t => Match.loose(t, S.cur.en, S.tol))) return this.wordCorrect();
+      if (alts.some(isRemind)) { S.cur.remind = true; return this.wordWrong(true); }
+      return this.wordWrong(alts.some(isPass));
+    }
+    // 例文ステージ
+    if (alts.some(t => Match.loose(t, S.cur.exEn, S.tol))) return this.exampleEnd(true);
+    if (alts.some(isPass) || alts.some(isRemind)) return this.exampleEnd(false);
+    S.exTries++;
+    const j = $('judge');
+    j.textContent = '❌';
+    j.className = 'mt-4 text-6xl h-16 shake';
+    if (S.exTries >= 3) return this.exampleEnd(false);   // 3回で切り上げ
   },
-  onText(text) {
-    if (S.locked || !S.cur || !text.trim()) return;
-    $('heard').textContent = '入力：' + text;
-    if (isPass(text)) return this.judgeWrong(true);
-    if (Match.loose(text, S.cur.en, S.tol)) return this.judgeCorrect();
-    this.judgeWrong(false);
-  },
-  judgeCorrect() {
+  wordCorrect() {
     S.locked = true;
     S.correct++;
-    S.queue.shift();                       // 正解したものは表から抜ける
+    Stats.record(S.cur, true);
+    const item = S.queue.shift();
+    if (item.remind) {
+      item.remind = false;
+      S.queue = S.queue.filter(x => x !== item);         // リマインド解除
+    }
+    const left = S.queue.filter(x => x === item).length;
     const j = $('judge');
-    j.textContent = '⭕';
+    j.textContent = left > 0 ? '⭕' : '💯';
     j.className = 'mt-4 text-6xl h-16 pop';
+    this.hud();
     setTimeout(() => this.next(), 900);
   },
-  judgeWrong(passed) {
+  wordWrong(passed) {
     S.locked = true;
     S.wrong++;
-    const item = S.queue.shift();
-    S.queue.push(item);                    // 間違えたものは後ろに回して残す
+    Stats.record(S.cur, false);
     const j = $('judge');
     j.textContent = passed ? '⏭️' : '❌';
     j.className = 'mt-4 text-6xl h-16 shake';
-    $('ansEn').textContent = item.en;
-    $('ansEx').textContent = item.ex ? '例：' + item.ex : '';
-    $('ansNote').textContent = item.note ? '参考：' + item.note : '';
+    $('ansEn').textContent = S.cur.en + (S.cur.remind ? '　🔁 リマインド登録' : '');
+    $('ansExJp').textContent = '';
+    $('ansExEn').textContent = '';
     $('reveal').classList.remove('hidden');
-    if ($('optSpeakEn').checked) Speaker.speak(item.en.replace(/[～〜~]/g, ' '), 'en-US');
-    setTimeout(() => this.next(), 3500);   // 答えを読む・聞く時間
+    this.hud();
+
+    const useEx = $('optExample').checked && S.cur.exJp && S.cur.exEn;
+    Speaker.speak([{ text: S.cur.en.replace(/[～〜~]/g, ' '), lang: 'en-US' }], null, () => {
+      if (useEx) this.askExample();
+      else setTimeout(() => { this.requeue(); this.next(); }, 1200);
+    });
+    if (!Speaker.ready || !$('optSpeak').checked) {
+      // 読み上げなしのときも同じ流れになるよう保険
+    }
+  },
+  askExample() {
+    S.stage = 'example'; S.locked = false; S.exTries = 0;
+    $('judge').textContent = '';
+    $('heard').textContent = '';
+    $('textInput').value = '';
+    $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-amber-400';
+    $('prompt').textContent = '📝 この例文を英語で言ってください';
+    $('question').textContent = S.cur.exJp;
+    Speaker.speak(S.cur.exJp, 'ja-JP');
+  },
+  exampleEnd(ok) {
+    S.locked = true;
+    const j = $('judge');
+    j.textContent = ok ? '⭕' : '❌';
+    j.className = 'mt-4 text-6xl h-16 ' + (ok ? 'pop' : 'shake');
+    $('ansExJp').textContent = '例文：' + S.cur.exJp;
+    $('ansExEn').textContent = S.cur.exEn;
+    $('reveal').classList.remove('hidden');
+    Speaker.speak([{ text: S.cur.exEn, lang: 'en-US' }], null, () => {
+      setTimeout(() => { this.requeue(); this.next(); }, 1000);
+    });
+  },
+  // 間違えた単語をキューに戻す
+  requeue() {
+    const item = S.queue.shift();
+    if (!item) return;
+    const others = S.queue.filter(x => x !== item).length;
+    const pending = S.queue.filter(x => x === item).length;
+    if (item.remind) {
+      S.queue.splice(Math.min(2, others), 0, item);      // 正解するまで2問先に出し続ける
+    } else if (pending === 0) {
+      S.queue.splice(Math.min(2, others), 0, item);      // 2問先
+      if (others >= 1) S.queue.push(item);               // さらに最後にもう一度
+    } else if (pending === 1 && others >= 1) {
+      S.queue.splice(Math.min(2, others), 0, item);
+    }
   },
   finish() {
     S.cur = null;
@@ -418,6 +518,7 @@ const Drill = {
 
 /* ===== 読み込み・イベント ===== */
 let loaded = [];
+let loadedHeader = [];
 $('fileInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -427,12 +528,18 @@ $('fileInput').addEventListener('change', (e) => {
       const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      loadedHeader = rows[0] || [];
       loaded = rows.slice(1).map(r => ({
         jp:   String(r[0] || '').trim(),
         en:   String(r[1] || '').trim(),
-        ex:   String(r[2] || '').trim(),
-        note: String(r[3] || '').trim()
+        exJp: String(r[2] || '').trim(),
+        exEn: String(r[3] || '').trim(),
+        tries: Number(r[4]) || 0,
+        ok:    Number(r[5]) || 0,
+        ng:    Number(r[6]) || 0,
+        remind: false
       })).filter(x => x.jp && x.en);
+      loaded.forEach(x => Stats.attach(x));
       $('setupMsg').textContent = `${loaded.length} 問を読み込みました。`;
       $('startBtn').disabled = loaded.length === 0;
     } catch (err) {
@@ -442,14 +549,31 @@ $('fileInput').addEventListener('change', (e) => {
   reader.readAsArrayBuffer(file);
 });
 
-$('startBtn').addEventListener('click', () => {
-  Speaker.unlock();                        // ★スマホの読み上げを目覚めさせる
-  Drill.begin(loaded);
-});
+function exportExcel() {
+  if (!loaded.length) { alert('先にExcelファイルを読み込んでください。'); return; }
+  const head = (loadedHeader.length >= 4 ? loadedHeader.slice(0, 4)
+                : ['日本語','英語','例文の日本語','例文の英語']);
+  const rows = [head.concat(['出題数','正解数','不正解数'])];
+  loaded.forEach(x => rows.push([x.jp, x.en, x.exJp, x.exEn, x.tries, x.ok, x.ng]));
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '単語');
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `単語表_成績_${stamp}.xlsx`);
+}
+
+$('startBtn').addEventListener('click', () => { Speaker.unlock(); Drill.begin(loaded); });
 $('replayBtn').addEventListener('click', () => Drill.replay());
 $('micBtn').addEventListener('click', () => Voice.toggle());
 $('langBtn').addEventListener('click', () => Voice.toggleLang());
-$('passBtn').addEventListener('click', () => { if (!S.locked) Drill.judgeWrong(true); });
+$('saveBtn').addEventListener('click', exportExcel);
+$('saveBtn2').addEventListener('click', exportExcel);
+$('passBtn').addEventListener('click', () => {
+  if (S.locked || !S.cur) return;
+  if (S.stage === 'word') Drill.wordWrong(true);
+  else Drill.exampleEnd(false);
+});
 $('quitBtn').addEventListener('click', () => {
   Voice.stop();
   try { speechSynthesis.cancel(); } catch (e) {}
@@ -457,7 +581,7 @@ $('quitBtn').addEventListener('click', () => {
   $('setupView').classList.remove('hidden');
 });
 $('textInput').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') Drill.onText(e.target.value);
+  if (e.key === 'Enter') Drill.onAnswer([e.target.value], '入力');
 });
 $('againBtn').addEventListener('click', () => {
   Speaker.unlock();
@@ -473,9 +597,6 @@ $('backBtn').addEventListener('click', () => {
 
 if (!Voice.setup()) {
   $('setupMsg').textContent = 'このブラウザは音声入力に対応していません（Chrome推奨）。テキスト入力でも使えます。';
-}
-if (!Speaker.ready) {
-  console.warn('このブラウザは読み上げに対応していません');
 }
 });
 </script>

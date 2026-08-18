@@ -28,6 +28,8 @@
     <div class="flex flex-wrap gap-4 text-sm">
       <label class="flex items-center gap-2"><input type="checkbox" id="optShuffle" checked>順番をシャッフルする</label>
       <label class="flex items-center gap-2"><input type="checkbox" id="optAutoMic" checked>開始時にマイクをONにする</label>
+      <label class="flex items-center gap-2"><input type="checkbox" id="optSpeakJa" checked>問題（日本語）を読み上げる</label>
+      <label class="flex items-center gap-2"><input type="checkbox" id="optSpeakEn" checked>不正解のとき答えを英語で読む</label>
     </div>
     <div>
       <label class="block text-sm font-medium mb-1">判定のゆるさ</label>
@@ -47,6 +49,7 @@
       <span id="progress" class="font-bold"></span>
       <span id="score" class="text-gray-600"></span>
       <div class="ml-auto flex gap-2">
+        <button id="replayBtn" class="px-3 py-2 bg-purple-600 text-white rounded text-sm">🔊 もう一度</button>
         <button id="langBtn" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇬🇧 英語</button>
         <button id="micBtn" class="px-3 py-2 bg-green-600 text-white rounded text-sm">🎤 マイクON</button>
         <button id="quitBtn" class="px-3 py-2 bg-gray-500 text-white rounded text-sm">終了</button>
@@ -90,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const $ = id => document.getElementById(id);
 
-/* ===== 文字比較（app.js と同じ考え方） ===== */
+/* ===== 文字比較 ===== */
 const Match = {
   norm(str) {
     if (str === null || str === undefined) return '';
@@ -118,7 +121,21 @@ const Match = {
     }
     return prev[b.length];
   },
-  loose(input, answerText, tol) {
+  // 「～」や括弧を外した言い方の候補を作る
+  variants(s) {
+    const dropTilde = t => String(t || '').replace(/[～〜~]/g, ' ').replace(/\s+/g, ' ').trim();
+    const dropParen = t => String(t || '')
+      .replace(/[（(\[【][^）)\]】]*[）)\]】]/g, ' ').replace(/\s+/g, ' ').trim();
+    const set = new Set();
+    [String(s || ''), dropParen(s)].forEach(base => {
+      const t = dropTilde(base);
+      if (t) set.add(t);
+      const p = t.replace(/[をにがはとへでのも]$/, '');
+      if (p) set.add(p);
+    });
+    return Array.from(set);
+  },
+  base(input, answerText, tol) {
     const a = this.norm(input);
     if (!a) return false;
     return String(answerText || '').split(/[、,／/｜|;；]/).some(part => {
@@ -130,6 +147,24 @@ const Match = {
       if (b.length <= 5) return this.lev(a, b) <= 1;
       return this.lev(a, b) / Math.max(a.length, b.length) <= tol;
     });
+  },
+  // 「～」「（  ）」の部分は言わなくても正解にする
+  loose(input, answerText, tol) {
+    if (this.base(input, answerText, tol)) return true;
+    const answers = this.variants(answerText);
+    const inputs = [String(input || '')].concat(this.variants(input));
+    for (const a of answers) {
+      for (const i of inputs) {
+        if (this.base(i, a, tol)) return true;
+      }
+    }
+    // 末尾が「～」の答えは前半が言えていればOK（例：look for～ ← "look for it"）
+    if (/[～〜~]\s*$/.test(String(answerText || ''))) {
+      const head = this.norm(String(answerText).replace(/[～〜~]/g, ''));
+      const said = this.norm(input);
+      if (head.length >= 3 && said.indexOf(head) === 0) return true;
+    }
+    return false;
   }
 };
 
@@ -158,9 +193,58 @@ const S = {
   locked: false, tol: 0.25
 };
 
-/* ===== 音声エンジン ===== */
+/* ===== 読み上げ（音声合成） ===== */
+const Speaker = {
+  ready: 'speechSynthesis' in window,
+  unlocked: false,
+  speaking: false,
+  rate: 0.95,          // ★読む速さ。0.8=ゆっくり 1.2=速め
+  // スマホは一度ユーザー操作の中で喋らせないと以降無音になる
+  unlock() {
+    if (!this.ready || this.unlocked) return;
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      speechSynthesis.speak(u);
+      this.unlocked = true;
+    } catch (e) {}
+  },
+  speak(text, lang) {
+    if (!this.ready || !text) return;
+    try {
+      speechSynthesis.cancel();
+      const micWasOn = Voice.micActive;
+      if (micWasOn) Voice.stop();          // 読み上げ音を誤認識しないよう一旦停止
+      this.speaking = true;
+      Voice.updateUI();
+
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.lang = lang || 'ja-JP';
+      u.rate = this.rate;
+
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        this.speaking = false;
+        if (micWasOn) setTimeout(() => Voice.start(), 400);
+        else Voice.updateUI();
+      };
+      u.onend = finish;
+      u.onerror = finish;
+      setTimeout(finish, 8000);            // 念のための保険
+      speechSynthesis.speak(u);
+    } catch (e) {
+      this.speaking = false;
+      console.warn('読み上げ失敗', e);
+    }
+  }
+};
+
+/* ===== 音声認識 ===== */
 const Voice = {
   rec: null, micActive: false, timer: null, lang: 'en-US',
+  stamps: [], blocked: false,
   setup() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return false;
@@ -183,16 +267,17 @@ const Voice = {
     };
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        this.blocked = true;
         this.micActive = false;
         this.updateUI();
-        alert('マイクの使用が許可されていません。');
+        alert('マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。');
       }
     };
     rec.onend = () => {
-      if (this.micActive) {
+      if (this.micActive && !Speaker.speaking) {
         clearTimeout(this.timer);
         this.timer = setTimeout(() => {
-          if (!this.micActive) return;
+          if (!this.micActive || Speaker.speaking) return;
           try { rec.start(); } catch (err) {}
         }, 300);
       }
@@ -203,6 +288,17 @@ const Voice = {
   },
   start() {
     if (!this.rec) { alert('このブラウザは音声入力に対応していません（Chrome推奨）'); return; }
+    if (this.blocked) return;
+    if (Speaker.speaking) return;
+    // 起動が異常に繰り返された場合の安全弁
+    const now = Date.now();
+    this.stamps = this.stamps.filter(t => now - t < 10000);
+    if (this.stamps.length >= 8) {
+      this.blocked = true; this.micActive = false; this.updateUI();
+      alert('音声認識が繰り返し起動したため停止しました。ページを再読み込みしてください。');
+      return;
+    }
+    this.stamps.push(now);
     this.micActive = true;
     try { this.rec.start(); } catch (e) {}
     this.updateUI();
@@ -225,8 +321,13 @@ const Voice = {
   updateUI() {
     const m = $('micBtn'), l = $('langBtn');
     if (m) {
-      m.textContent = this.micActive ? '🔴 停止' : '🎤 マイクON';
-      m.className = 'px-3 py-2 rounded text-sm text-white ' + (this.micActive ? 'bg-red-600' : 'bg-green-600');
+      if (Speaker.speaking) {
+        m.textContent = '🔊 読み上げ中';
+        m.className = 'px-3 py-2 rounded text-sm text-white bg-purple-600';
+      } else {
+        m.textContent = this.micActive ? '🔴 停止' : '🎤 マイクON';
+        m.className = 'px-3 py-2 rounded text-sm text-white ' + (this.micActive ? 'bg-red-600' : 'bg-green-600');
+      }
     }
     if (l) l.textContent = this.lang === 'en-US' ? '🇬🇧 英語' : '🇯🇵 日本語';
   }
@@ -237,12 +338,12 @@ const Drill = {
   begin(items) {
     S.all = items;
     S.tol = parseFloat($('optTolerance').value);
-    this.restart();
     $('setupView').classList.add('hidden');
     $('doneView').classList.add('hidden');
     $('drillView').classList.remove('hidden');
     Voice.updateUI();
     if ($('optAutoMic').checked) Voice.start();
+    this.restart();
   },
   restart() {
     S.queue = S.all.slice();
@@ -261,6 +362,10 @@ const Drill = {
     $('question').textContent = S.cur.jp;
     $('progress').textContent = `残り ${S.queue.length} 問 / 全 ${S.total} 問`;
     $('score').textContent = `正解 ${S.correct} ・ 不正解 ${S.wrong}`;
+    if ($('optSpeakJa').checked) Speaker.speak(S.cur.jp, 'ja-JP');   // ★問題を読み上げ
+  },
+  replay() {
+    if (S.cur) Speaker.speak(S.cur.jp, 'ja-JP');
   },
   onSpeech(alts) {
     if (S.locked || !S.cur) return;
@@ -297,11 +402,13 @@ const Drill = {
     $('ansEx').textContent = item.ex ? '例：' + item.ex : '';
     $('ansNote').textContent = item.note ? '参考：' + item.note : '';
     $('reveal').classList.remove('hidden');
-    setTimeout(() => this.next(), 3000);   // 答えを読む時間
+    if ($('optSpeakEn').checked) Speaker.speak(item.en.replace(/[～〜~]/g, ' '), 'en-US');
+    setTimeout(() => this.next(), 3500);   // 答えを読む・聞く時間
   },
   finish() {
     S.cur = null;
     Voice.stop();
+    try { speechSynthesis.cancel(); } catch (e) {}
     $('drillView').classList.add('hidden');
     $('doneView').classList.remove('hidden');
     const rate = (S.correct + S.wrong) ? Math.round(S.correct / (S.correct + S.wrong) * 100) : 0;
@@ -335,12 +442,17 @@ $('fileInput').addEventListener('change', (e) => {
   reader.readAsArrayBuffer(file);
 });
 
-$('startBtn').addEventListener('click', () => Drill.begin(loaded));
+$('startBtn').addEventListener('click', () => {
+  Speaker.unlock();                        // ★スマホの読み上げを目覚めさせる
+  Drill.begin(loaded);
+});
+$('replayBtn').addEventListener('click', () => Drill.replay());
 $('micBtn').addEventListener('click', () => Voice.toggle());
 $('langBtn').addEventListener('click', () => Voice.toggleLang());
 $('passBtn').addEventListener('click', () => { if (!S.locked) Drill.judgeWrong(true); });
 $('quitBtn').addEventListener('click', () => {
   Voice.stop();
+  try { speechSynthesis.cancel(); } catch (e) {}
   $('drillView').classList.add('hidden');
   $('setupView').classList.remove('hidden');
 });
@@ -348,10 +460,11 @@ $('textInput').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') Drill.onText(e.target.value);
 });
 $('againBtn').addEventListener('click', () => {
+  Speaker.unlock();
   $('doneView').classList.add('hidden');
   $('drillView').classList.remove('hidden');
-  Drill.restart();
   if ($('optAutoMic').checked) Voice.start();
+  Drill.restart();
 });
 $('backBtn').addEventListener('click', () => {
   $('doneView').classList.add('hidden');
@@ -361,101 +474,10 @@ $('backBtn').addEventListener('click', () => {
 if (!Voice.setup()) {
   $('setupMsg').textContent = 'このブラウザは音声入力に対応していません（Chrome推奨）。テキスト入力でも使えます。';
 }
+if (!Speaker.ready) {
+  console.warn('このブラウザは読み上げに対応していません');
+}
 });
-
-// ★追加：「～」や括弧内の語は言わなくても正解にする（既存判定を包むだけ）
-(function () {
-  if (typeof Utils === 'undefined' || !Utils.looseMatch) return;
-
-  const _loose = Utils.looseMatch.bind(Utils);
-  const norm = Utils.normalizeForCompare
-    ? Utils.normalizeForCompare.bind(Utils)
-    : (s => String(s || '').toLowerCase().replace(/[\s\W_]+/g, ''));
-
-  // 「～」「〜」「~」を取り除く
-  const dropTilde = s => String(s || '').replace(/[～〜~]/g, ' ').replace(/\s+/g, ' ').trim();
-  // 括弧（全角・半角・角括弧）の中身ごと取り除く
-  const dropParen = s => String(s || '')
-    .replace(/[（(\[【][^）)\]】]*[）)\]】]/g, ' ').replace(/\s+/g, ' ').trim();
-
-  // 1つの答えから「許容する言い方」の候補を作る
-  const variants = (s) => {
-    const set = new Set();
-    [String(s || ''), dropParen(s)].forEach(base => {
-      const t = dropTilde(base);
-      set.add(t);
-      set.add(t.replace(/[をにがはとへでのも]$/, '')); // 末尾の助詞も省略可
-    });
-    return Array.from(set).filter(v => v.length > 0);
-  };
-
-  Utils.looseMatch = function (input, answer, tolerance) {
-    if (_loose(input, answer, tolerance)) return true;
-
-    // 答え側・入力側の両方を候補に展開して総当たり
-    const ins = [String(input || '')].concat(variants(input));
-    const ans = variants(answer);
-    for (const i of ins) {
-      for (const a of ans) {
-        if (_loose(i, a, tolerance)) return true;
-      }
-    }
-
-    // 末尾が「～」の答えは、前半が言えていればOK（例：look for～ ← "look for it"）
-    if (/[～〜~]\s*$/.test(String(answer || ''))) {
-      const head = norm(dropTilde(answer));
-      const said = norm(input);
-      if (head.length >= 3 && said.startsWith(head)) return true;
-    }
-    return false;
-  };
-})();
-// ★追加：問題文（日本語）を読み上げる
-const Speaker = {
-  ready: false,
-  enabled: true,
-
-  init() {
-    if (!('speechSynthesis' in window)) return;
-    this.ready = true;
-    speechSynthesis.getVoices(); // 初回の声リスト読み込み
-  },
-
-  speak(text, lang = 'ja-JP') {
-    if (!this.ready || !this.enabled || !text) return;
-    try {
-      speechSynthesis.cancel();
-
-      // 読み上げ中はマイクを止める（自分の声を誤認識しないため）
-      const micWasOn = !!(window.SpeechManager && SpeechManager.micActive);
-      if (micWasOn && SpeechManager.pause) SpeechManager.pause();
-      else if (micWasOn && SpeechManager.stop) SpeechManager.stop();
-
-      const u = new SpeechSynthesisUtterance(String(text));
-      u.lang = lang;
-      u.rate = 0.95;
-      u.onend = u.onerror = () => {
-        if (micWasOn) {
-          setTimeout(() => {
-            if (SpeechManager.resume) SpeechManager.resume();
-            else if (SpeechManager.start) SpeechManager.start();
-          }, 400);
-        }
-      };
-      speechSynthesis.speak(u);
-    } catch (e) {
-      console.warn('読み上げ失敗', e);
-    }
-  }
-};
-Speaker.init();
-
-// スマホ対策：最初の画面タップで読み上げ機能を有効化する
-document.addEventListener('click', function once() {
-  try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {}
-  document.removeEventListener('click', once);
-}, { once: true });
-
 </script>
 </body>
 </html>

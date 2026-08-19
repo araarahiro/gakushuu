@@ -80,7 +80,7 @@
           <select id="optTolerance" class="border rounded p-2 text-sm">
             <option value="0.15">厳しめ</option>
             <option value="0.25">ふつう</option>
-           <option value="0.4" selected>ゆるめ</option>
+            <option value="0.4" selected>ゆるめ</option>
           </select>
         </div>
         <div>
@@ -176,7 +176,7 @@ const Match = {
     s = s.replace(/^(えーと|えっと|ええと|あのー|たぶん|多分|こたえは|答えは)+/g, '');
     s = s.replace(/^(to|a|an|the)\s+/g, '');
     s = s.replace(/(です|ですね|だと思います)+$/g, '');
-    s = s.replace(/[\s\u3000ー－―‐・、。，．,.\-_!！?？"'「」『』（）()\[\]【】:：;；]/g, '');
+    s = s.replace(/[\s\u3000ー－―‐・、。，．,.\-_!！?？"'「」『』（）()\[\]【】:：;；…～〜~＊*]/g, '');
     return s;
   },
   lev(a, b) {
@@ -193,13 +193,33 @@ const Match = {
     }
     return prev[b.length];
   },
+  strip(text) {
+    return String(text || '')
+      .replace(/[～〜~＊*]+|\.{2,}|…+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
+  segments(input, answerText) {
+    const parts = String(answerText || '')
+      .split(/[～〜~＊*]+|\.{2,}|…+/)
+      .map(p => this.norm(p))
+      .filter(p => p.length >= 2);
+    if (parts.length < 2 || parts.join('').length < 4) return false;
+    const a = this.norm(input);
+    let pos = 0;
+    for (const p of parts) {
+      const i = a.indexOf(p, pos);
+      if (i < 0) return false;
+      pos = i + p.length;
+    }
+    return true;
+  },
   variants(s) {
-    const dropTilde = t => String(t || '').replace(/[～〜~]/g, ' ').replace(/\s+/g, ' ').trim();
     const dropParen = t => String(t || '')
       .replace(/[（(\[【][^）)\]】]*[）)\]】]/g, ' ').replace(/\s+/g, ' ').trim();
     const set = new Set();
     [String(s || ''), dropParen(s)].forEach(base => {
-      const t = dropTilde(base);
+      const t = this.strip(base);
       if (t) set.add(t);
       const p = t.replace(/[をにがはとへでのも]$/, '');
       if (p) set.add(p);
@@ -221,6 +241,7 @@ const Match = {
   },
   loose(input, answerText, tol) {
     if (this.base(input, answerText, tol)) return true;
+    if (String(answerText || '').split(/[、,／/｜|;；]/).some(part => this.segments(input, part))) return true;
     const answers = this.variants(answerText);
     const inputs = [String(input || '')].concat(this.variants(input));
     for (const a of answers) {
@@ -228,8 +249,8 @@ const Match = {
         if (this.base(i, a, tol)) return true;
       }
     }
-    if (/[～〜~]\s*$/.test(String(answerText || ''))) {
-      const head = this.norm(String(answerText).replace(/[～〜~]/g, ''));
+    if (/([～〜~＊*]|\.{2,}|…)\s*$/.test(String(answerText || ''))) {
+      const head = this.norm(this.strip(answerText));
       const said = this.norm(input);
       if (head.length >= 3 && said.indexOf(head) === 0) return true;
     }

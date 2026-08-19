@@ -97,6 +97,7 @@
       </div>
       <button id="startBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold disabled:bg-gray-400" disabled>ドリルを開始</button>
       <div id="setupMsg" class="text-sm text-center text-gray-600"></div>
+      <p id="micNote" class="text-xs text-center text-gray-500"></p>
     </div>
   </div>
 
@@ -145,7 +146,6 @@
       <p id="doneStat" class="text-gray-700"></p>
     </div>
 
-    <!-- 見直しリスト -->
     <div class="border-t pt-4">
       <div class="flex flex-wrap items-center gap-2 mb-2">
         <h3 class="font-bold">📋 今回の一覧</h3>
@@ -176,7 +176,7 @@ const Match = {
   norm(str){
     if(str===null || str===undefined) return '';
     let s = String(str);
-    try { s = s.normalize('NFKC'); } catch(e){}
+    try{ s = s.normalize('NFKC'); }catch(e){}
     s = s.toLowerCase();
     s = s.replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
     s = s.replace(/^(えーと|えっと|ええと|あのー|たぶん|多分|こたえは|答えは)+/g, '');
@@ -212,8 +212,8 @@ const Match = {
     const add = x => { if(x && String(x).trim()) out.add(String(x)); };
     const s = String(str||'');
     add(s);
-    add(s.replace(/[（(][^）)]*[）)]/g,' '));      // 括弧内を削除
-    add(s.replace(/[（()）]/g,' '));                // 括弧だけ削除
+    add(s.replace(/[（(][^）)]*[）)]/g,' '));
+    add(s.replace(/[（()）]/g,' '));
     const t = s.replace(/[～〜~]/g,' ');
     add(t);
     const head = s.split(/[～〜~]/)[0];
@@ -314,12 +314,14 @@ const Speaker = {
 /* ===== 音声認識 ===== */
 const Voice = {
   SR: window.SpeechRecognition || window.webkitSpeechRecognition,
-  rec:null, on:false, holding:false, blocked:false, lang:'en-US', stamps:[],
+  rec:null, on:false, holding:false, running:false, denied:false,
+  lang:'en-US', stamps:[], timer:null,
   setup(){
     if(!this.SR) return false;
     const r = new this.SR();
     r.lang = this.lang; r.continuous = true; r.interimResults = false;
     try{ r.maxAlternatives = 5; }catch(e){}
+    r.onstart = () => { this.running = true; this.paint(); };
     r.onresult = e => {
       const alts = [];
       for(let i = e.resultIndex; i < e.results.length; i++){
@@ -330,52 +332,77 @@ const Voice = {
     };
     r.onerror = e => {
       if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
-        this.blocked = true; this.on = false; this.paint();
-        alert('マイクが使えません。ブラウザのマイク許可を確認してください。');
+        this.denied = true; this.on = false; this.running = false; this.paint();
+        alert('マイクが使えません。ブラウザのマイク許可を確認してから、もう一度「マイクON」を押してください。');
       }
     };
-    r.onend = () => { if(this.on && !this.holding) this.kick(); else this.paint(); };
+    r.onend = () => {
+      this.running = false; this.paint();
+      if(this.on && !this.holding) this.schedule(300);
+    };
     this.rec = r;
     return true;
   },
+  schedule(ms){
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.kick(), ms || 250);
+  },
   kick(){
-    if(this.blocked || !this.rec) return;
+    if(!this.rec || !this.on || this.holding || this.denied || this.running) return;
     const now = Date.now();
     this.stamps = this.stamps.filter(t => now - t < 10000);
-    if(this.stamps.length >= 15){ this.on = false; this.paint(); return; }
+    if(this.stamps.length >= 30){ this.schedule(1500); return; }
     this.stamps.push(now);
-    try{ this.rec.lang = this.lang; this.rec.start(); }catch(e){}
+    try{ this.rec.lang = this.lang; this.rec.start(); }
+    catch(e){ this.schedule(600); }
+    this.paint();
   },
-  start(){ if(!this.rec) return; this.on = true; this.holding = false; this.kick(); this.paint(); },
-  stop(){ this.on = false; this.holding = false; try{ this.rec && this.rec.abort(); }catch(e){} this.paint(); },
-  hold(){ if(!this.on) return; this.holding = true; try{ this.rec.abort(); }catch(e){} },
-  release(){ if(!this.on) return; this.holding = false; this.kick(); },
+  start(){
+    if(!this.rec){ alert('このブラウザは音声認識に対応していません。Android は Chrome、パソコンは Chrome をお試しください。'); return; }
+    this.denied = false; this.on = true; this.holding = false;
+    this.stamps = [];
+    this.kick(); this.paint();
+  },
+  stop(){
+    this.on = false; this.holding = false;
+    clearTimeout(this.timer);
+    try{ this.rec && this.rec.abort(); }catch(e){}
+    this.paint();
+  },
+  hold(){ if(!this.on) return; this.holding = true; clearTimeout(this.timer); try{ this.rec.abort(); }catch(e){} },
+  release(){ if(!this.on) return; this.holding = false; this.schedule(250); },
+  ensure(){
+    if(!this.rec || this.denied) return;
+    if(!this.on) this.start();
+    else if(!this.running && !this.holding) this.schedule(150);
+  },
   setLang(l){
+    if(this.lang === l){ this.paint(); return; }
     this.lang = l;
-    if(this.on){
-      this.holding = true;
-      try{ this.rec.abort(); }catch(e){}
-      setTimeout(() => { if(this.on){ this.holding = false; this.kick(); } }, 250);
-    }
+    if(this.on){ try{ this.rec.abort(); }catch(e){} if(!this.holding) this.schedule(300); }
     this.paint();
   },
   toggle(){ this.on ? this.stop() : this.start(); },
   paint(){
     const b = $('micBtn');
     if(!this.rec){ b.textContent = '🎤 非対応'; b.className = 'px-3 py-2 bg-gray-400 text-white rounded text-sm'; }
-    else if(this.on){ b.textContent = '🎤 マイクON'; b.className = 'px-3 py-2 bg-green-600 text-white rounded text-sm'; }
+    else if(this.on && this.running){ b.textContent = '🎤 聞き取り中'; b.className = 'px-3 py-2 bg-green-600 text-white rounded text-sm'; }
+    else if(this.on){ b.textContent = '🎤 準備中'; b.className = 'px-3 py-2 bg-yellow-500 text-white rounded text-sm'; }
     else { b.textContent = '🎤 マイクOFF'; b.className = 'px-3 py-2 bg-gray-500 text-white rounded text-sm'; }
     $('langBtn').textContent = (this.lang === 'en-US') ? '🇬🇧 英語で聞き取り' : '🇯🇵 日本語で聞き取り';
   }
 };
 Voice.setup(); Voice.paint();
+$('micNote').textContent = Voice.rec
+  ? 'マイクは Chrome（Android / パソコン）が安定します。'
+  : 'このブラウザは音声認識に非対応です。キーボード入力で練習できます。Chrome だと音声が使えます。';
 
 /* ===== 状態 ===== */
 const S = { queue:[], cur:null, stage:'word', total:0, correct:0, wrong:0,
             lock:false, timers:[], pending:null, countedWrong:false, needRequeue:false,
-            tries:0, session:[], listenTimer:null };
+            tries:0, session:[] };
 
-function clearTimers(){ S.timers.forEach(clearTimeout); S.timers = []; S.pending = null; S.listenTimer = null; }
+function clearTimers(){ S.timers.forEach(clearTimeout); S.timers = []; S.pending = null; }
 function later(ms, fn){ S.pending = fn; const t = setTimeout(() => { S.pending = null; fn(); }, ms); S.timers.push(t); }
 function showMs(){ return parseInt($('optShow').value,10) || 6000; }
 function tolVal(){ return parseFloat($('optTolerance').value) || 0.25; }
@@ -395,17 +422,17 @@ const Drill = {
     $('doneView').classList.add('hidden');
     $('drillView').classList.remove('hidden');
     Speaker.unlock();
-    if($('optAutoMic').checked && Voice.rec && !Voice.blocked) Voice.start(); else Voice.paint();
+    if($('optAutoMic').checked) Voice.ensure(); else Voice.paint();
     this.next();
   },
   paintHead(){
     $('progress').textContent = `残り ${new Set(S.queue).size} 問（出題待ち ${S.queue.length} 回）/ 全 ${S.total} 問`;
     $('score').textContent = `⭕ ${S.correct}　❌ ${S.wrong}`;
   },
-  armMic(){ if($('optAutoMic').checked && Voice.rec && !Voice.on && !Voice.blocked) Voice.start(); },
+  armMic(){ if($('optAutoMic').checked) Voice.ensure(); },
   armTimeout(fn){
     const t = setTimeout(() => { if(!S.lock) fn(); }, 25000);
-    S.listenTimer = t; S.timers.push(t);
+    S.timers.push(t);
   },
   next(){
     clearTimers();
@@ -455,7 +482,6 @@ const Drill = {
     S.lock = true; S.correct++;
     Stats.record(S.cur, true);
     const e = sess(S.cur); if(e.ok === null) e.ok = true;
-    S.cur.remindOn = false;
     $('judge').textContent = '⭕'; $('judge').className = 'mt-4 text-6xl h-16 pop';
     $('stageBox').classList.add('border-green-400');
     if(S.queue[0] === S.cur) S.queue.shift();
@@ -480,7 +506,7 @@ const Drill = {
     });
   },
   remind(){
-    S.lock = true; S.needRequeue = true; S.cur.remindOn = true;
+    S.lock = true; S.needRequeue = true;
     $('judge').textContent = '🔁'; $('judge').className = 'mt-4 text-6xl h-16 pop';
     $('ansEn').textContent = S.cur.en;
     $('ansExJp').textContent = S.cur.exJp ? '例文：' + S.cur.exJp : '';
@@ -637,7 +663,6 @@ const Review = {
 };
 
 /* ===== 読み込み ===== */
-let loadedHeader = [];
 function makeItem(r, off){
   const g = i => String(r[i+off] === undefined || r[i+off] === null ? '' : r[i+off]).trim();
   const n = i => Number(r[i+off]) || 0;
@@ -667,7 +692,6 @@ $('fileInput').addEventListener('change', ev => {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
       if(rows.length < 2){ alert('データが見つかりません。'); return; }
-      loadedHeader = rows[0] || [];
       const body = rows.slice(1).filter(r => r && r.join('').trim() !== '');
       let hits = 0;
       body.slice(0,10).forEach(r => {

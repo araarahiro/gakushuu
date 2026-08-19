@@ -36,7 +36,7 @@
     <!-- 取り込み -->
     <div class="bg-white rounded-lg shadow p-5 space-y-3">
       <h2 class="font-bold text-lg">📥 Excelから取り込む</h2>
-      <p class="text-xs text-gray-500">A:日本語 / B:英語 / C:例文の日本語 / D:例文の英語 / E:出題数 / F:正解数 / G:不正解数（1行目は見出し）</p>
+      <p class="text-xs text-gray-500">A:問題番号 / B:日本語 / C:英語 / D:例文の日本語 / E:例文の英語 / F:出題数 / G:正解数 / H:不正解数（1行目は見出し。番号列がなくても自動で振ります）</p>
       <input type="file" id="fileInput" accept=".xlsx,.xls" class="w-full border rounded p-2 text-sm">
       <div class="flex gap-2 flex-wrap">
         <input type="text" id="bookName" class="border rounded p-2 text-sm flex-grow min-w-[10rem]" placeholder="問題集の名前（例：英検2級 単語）">
@@ -61,6 +61,15 @@
     <div class="bg-white rounded-lg shadow p-5 space-y-4">
       <h2 class="font-bold text-lg">⚙️ 出題の設定</h2>
       <div class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">出題する問題番号</label>
+          <div class="flex items-center gap-1">
+            <input type="number" id="optFrom" min="1" step="1" class="border rounded p-2 w-20 text-sm" placeholder="最初">
+            <span class="text-sm">〜</span>
+            <input type="number" id="optTo" min="1" step="1" class="border rounded p-2 w-20 text-sm" placeholder="最後">
+          </div>
+          <p class="text-xs text-gray-500 mt-1" id="rangeHint">空欄なら全範囲</p>
+        </div>
         <div>
           <label class="block text-sm font-medium mb-1">今回の出題数</label>
           <input type="number" id="optCount" min="1" step="1" class="border rounded p-2 w-28 text-sm" placeholder="全部">
@@ -102,6 +111,7 @@
       <span id="score" class="text-gray-600"></span>
       <div class="ml-auto flex gap-2 flex-wrap">
         <button id="replayBtn" class="px-3 py-2 bg-purple-600 text-white rounded text-sm">🔊 もう一度</button>
+        <button id="okBtn" class="px-3 py-2 bg-emerald-600 text-white rounded text-sm">⭕ 正解にする</button>
         <button id="nextBtn" class="px-3 py-2 bg-slate-600 text-white rounded text-sm">⏩ 次へ</button>
         <button id="langBtn" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇬🇧 英語</button>
         <button id="micBtn" class="px-3 py-2 bg-green-600 text-white rounded text-sm">🎤 マイクON</button>
@@ -126,7 +136,7 @@
         <input type="text" id="textInput" class="flex-grow border rounded p-2" placeholder="キーボードで答える場合はここに入力（Enter）">
         <button id="passBtn" class="px-4 py-2 bg-yellow-500 text-white rounded font-bold">パス</button>
       </div>
-      <p class="text-xs text-gray-500 mt-2">声で「パス」「スキップ」なら不正解あつかい。「remind（リマインド）」と言うと、正解するまで2問先に出続けます。</p>
+      <p class="text-xs text-gray-500 mt-2">声で「パス」「スキップ」なら不正解あつかい。「remind（リマインド）」と言うと、正解するまで2問先に出続けます。うまく認識されないときは「⭕ 正解にする」を押してください。</p>
     </div>
   </div>
 
@@ -245,7 +255,7 @@ const isRemind = t => hitWord(t, REMIND_WORDS);
 /* ===== 問題集の保管庫 ===== */
 const Library = {
   KEY: 'drill-books-v1',
-  books: {},          // { 名前: [ {jp,en,exJp,exEn,tries,ok,ng}, ... ] }
+  books: {},
   current: '',
   load() {
     try { this.books = JSON.parse(localStorage.getItem(this.KEY) || '{}'); }
@@ -258,13 +268,12 @@ const Library = {
   names() { return Object.keys(this.books).sort(); },
   put(name, items) {
     this.books[name] = items.map(x => ({
-      jp: x.jp, en: x.en, exJp: x.exJp, exEn: x.exEn,
+      no: x.no || 0, jp: x.jp, en: x.en, exJp: x.exJp, exEn: x.exEn,
       tries: x.tries || 0, ok: x.ok || 0, ng: x.ng || 0
     }));
     return this.save();
   },
   remove(name) { delete this.books[name]; this.save(); },
-  // 現在使っている問題集に成績を書き戻す
   syncCurrent() {
     if (this.current && this.books[this.current]) this.put(this.current, loaded);
   },
@@ -479,6 +488,17 @@ const Drill = {
   },
   restart() {
     let list = S.all.slice();
+    const from = parseInt($('optFrom').value, 10);
+    const to   = parseInt($('optTo').value, 10);
+    if (!isNaN(from)) list = list.filter(x => x.no >= from);
+    if (!isNaN(to))   list = list.filter(x => x.no <= to);
+    if (!list.length) {
+      alert('その問題番号の範囲には問題がありません。範囲を見直してください。');
+      Voice.stop();
+      $('drillView').classList.add('hidden');
+      $('setupView').classList.remove('hidden');
+      return;
+    }
     list.forEach(x => { x.remind = false; });
     if ($('optShuffle').checked) list.sort(() => Math.random() - 0.5);
     const n = parseInt($('optCount').value, 10);
@@ -502,7 +522,7 @@ const Drill = {
     $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-transparent';
     if (S.queue.length === 0) return this.finish();
     S.cur = S.queue[0];
-    $('prompt').textContent = 'この日本語を英語で答えてください' + (S.cur.remind ? '（🔁 リマインド中）' : '');
+    $('prompt').textContent = `No.${S.cur.no}　この日本語を英語で答えてください` + (S.cur.remind ? '（🔁 リマインド中）' : '');
     $('question').textContent = S.cur.jp;
     this.hud();
     Speaker.speak(S.cur.jp, 'ja-JP');
@@ -628,6 +648,27 @@ const Drill = {
       S.queue.splice(Math.min(2, others), 0, item);
     }
   },
+  forceCorrect() {
+    if (!S.cur) return;
+    clearTimeout(this.timer);
+    try { speechSynthesis.cancel(); } catch (e) {}
+    Speaker.speaking = false;
+    Speaker.session++;
+    if (S.stage === 'word') {
+      if (S.locked) {
+        const it = S.cur;
+        S.wrong--;
+        it.tries = Math.max(0, it.tries - 1);
+        it.ng    = Math.max(0, it.ng - 1);
+        Stats.data[Stats.key(it)] = { tries: it.tries, ok: it.ok, ng: it.ng };
+        Stats.save();
+        S.locked = false;
+      }
+      return this.wordCorrect();
+    }
+    if (S.stage === 'example') return this.exampleEnd(true);
+    return this.repeatEnd(true);
+  },
   skip() {
     clearTimeout(this.timer);
     try { speechSynthesis.cancel(); } catch (e) {}
@@ -641,7 +682,7 @@ const Drill = {
     S.cur = null;
     Voice.stop();
     try { speechSynthesis.cancel(); } catch (e) {}
-    Library.syncCurrent();                       // ★成績を問題集に書き戻す
+    Library.syncCurrent();
     $('drillView').classList.add('hidden');
     $('doneView').classList.remove('hidden');
     const rate = (S.correct + S.wrong) ? Math.round(S.correct / (S.correct + S.wrong) * 100) : 0;
@@ -651,24 +692,44 @@ const Drill = {
 
 /* ===== 問題集の読み込みと管理 ===== */
 let loaded = [];
-function makeItem(r) {
+function makeItem(r, off) {
+  if (Array.isArray(r)) {
+    const o = off || 0;
+    return {
+      no:   o ? (Number(r[0]) || 0) : 0,
+      jp:   String(r[o]   || '').trim(),
+      en:   String(r[o+1] || '').trim(),
+      exJp: String(r[o+2] || '').trim(),
+      exEn: String(r[o+3] || '').trim(),
+      tries: Number(r[o+4]) || 0,
+      ok:    Number(r[o+5]) || 0,
+      ng:    Number(r[o+6]) || 0,
+      remind: false
+    };
+  }
   return {
-    jp:   String(r.jp   !== undefined ? r.jp   : r[0] || '').trim(),
-    en:   String(r.en   !== undefined ? r.en   : r[1] || '').trim(),
-    exJp: String(r.exJp !== undefined ? r.exJp : r[2] || '').trim(),
-    exEn: String(r.exEn !== undefined ? r.exEn : r[3] || '').trim(),
-    tries: Number(r.tries !== undefined ? r.tries : r[4]) || 0,
-    ok:    Number(r.ok    !== undefined ? r.ok    : r[5]) || 0,
-    ng:    Number(r.ng    !== undefined ? r.ng    : r[6]) || 0,
+    no:   Number(r.no) || 0,
+    jp:   String(r.jp   || '').trim(),
+    en:   String(r.en   || '').trim(),
+    exJp: String(r.exJp || '').trim(),
+    exEn: String(r.exEn || '').trim(),
+    tries: Number(r.tries) || 0,
+    ok:    Number(r.ok)    || 0,
+    ng:    Number(r.ng)    || 0,
     remind: false
   };
 }
 function setLoaded(items, label) {
   loaded = items.filter(x => x.jp && x.en);
+  loaded.forEach((x, i) => { if (!x.no) x.no = i + 1; });
   loaded.forEach(x => Stats.attach(x));
+  const nos = loaded.map(x => x.no);
+  const lo = nos.length ? Math.min.apply(null, nos) : 0;
+  const hi = nos.length ? Math.max.apply(null, nos) : 0;
   $('setupMsg').textContent = `${label}：${loaded.length} 問を使用します。`;
   $('optCount').max = loaded.length;
   $('countHint').textContent = `空欄なら全${loaded.length}問`;
+  $('rangeHint').textContent = `この問題集は No.${lo}〜${hi}`;
   $('startBtn').disabled = loaded.length === 0;
 }
 
@@ -681,8 +742,12 @@ $('fileInput').addEventListener('change', (e) => {
       const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const body = rows.slice(1).filter(r => r && r.length);
+      const numish = body.filter(r => String(r[0] || '').trim() !== '' && !isNaN(Number(r[0]))).length;
+      const off = (body.length && numish >= body.length * 0.8) ? 1 : 0;
       Library.current = '';
-      setLoaded(rows.slice(1).map(makeItem), 'Excelから読み込み');
+      setLoaded(body.map(r => makeItem(r, off)),
+                off ? 'Excelから読み込み（A列=問題番号）' : 'Excelから読み込み');
       $('saveBookBtn').disabled = loaded.length === 0;
       if (!$('bookName').value) $('bookName').value = file.name.replace(/\.[^.]+$/, '');
     } catch (err) {
@@ -707,7 +772,7 @@ $('useBookBtn').addEventListener('click', () => {
   const name = $('bookSelect').value;
   if (!name || !Library.books[name]) { alert('問題集を選んでください。'); return; }
   Library.current = name;
-  setLoaded(Library.books[name].map(makeItem), `「${name}」`);
+  setLoaded(Library.books[name].map(r => makeItem(r)), `「${name}」`);
   $('bookMsg').textContent = `「${name}」を選択中です。`;
 });
 
@@ -729,7 +794,7 @@ $('delBookBtn').addEventListener('click', () => {
   if (!name || !Library.books[name]) return;
   if (!confirm(`「${name}」を削除します。よろしいですか？`)) return;
   Library.remove(name);
-  if (Library.current === name) { Library.current = ''; }
+  if (Library.current === name) Library.current = '';
   Library.refreshUI();
   $('bookMsg').textContent = `「${name}」を削除しました。`;
 });
@@ -770,11 +835,11 @@ $('impJsonInput').addEventListener('change', (e) => {
         if (Library.books[key] && !confirm(`「${key}」は既にあります。上書きしますか？\n（キャンセルすると別名で追加します）`)) {
           key = name + '（読込' + stamp() + '）';
         }
-        Library.books[key] = d.books[name].map(makeItem);
+        Library.books[key] = d.books[name].map(r => makeItem(r));
         add++;
       });
       Library.save();
-      if (d.stats) {                       // 成績は大きい方を採用して合流
+      if (d.stats) {
         Object.keys(d.stats).forEach(k => {
           const a = Stats.data[k] || { tries: 0, ok: 0, ng: 0 }, b = d.stats[k];
           Stats.data[k] = {
@@ -797,8 +862,8 @@ $('impJsonInput').addEventListener('change', (e) => {
 
 $('expXlsxBtn').addEventListener('click', () => {
   if (!loaded.length) { alert('先に問題集を選ぶか、Excelを読み込んでください。'); return; }
-  const rows = [['日本語','英語','例文の日本語','例文の英語','出題数','正解数','不正解数']];
-  loaded.forEach(x => rows.push([x.jp, x.en, x.exJp, x.exEn, x.tries, x.ok, x.ng]));
+  const rows = [['問題番号','日本語','英語','例文の日本語','例文の英語','出題数','正解数','不正解数']];
+  loaded.forEach(x => rows.push([x.no, x.jp, x.en, x.exJp, x.exEn, x.tries, x.ok, x.ng]));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '単語');
   XLSX.writeFile(wb, `${Library.current || '単語表'}_成績_${stamp()}.xlsx`);
@@ -807,6 +872,7 @@ $('expXlsxBtn').addEventListener('click', () => {
 /* ===== 画面イベント ===== */
 $('startBtn').addEventListener('click', () => { Speaker.unlock(); Drill.begin(loaded); });
 $('replayBtn').addEventListener('click', () => Drill.replay());
+$('okBtn').addEventListener('click', () => Drill.forceCorrect());
 $('nextBtn').addEventListener('click', () => Drill.skip());
 $('micBtn').addEventListener('click', () => Voice.toggle());
 $('langBtn').addEventListener('click', () => Voice.toggleLang());

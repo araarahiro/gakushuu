@@ -18,10 +18,9 @@
 <div class="max-w-3xl mx-auto">
   <h1 class="text-2xl font-bold text-center mb-4">🎧 音声一問一答ドリル</h1>
 
-  <!-- 設定画面 -->
+  <!-- ===== 設定画面 ===== -->
   <div id="setupView" class="space-y-4">
 
-    <!-- アプリ内の問題集 -->
     <div class="bg-white rounded-lg shadow p-5 space-y-3">
       <h2 class="font-bold text-lg">📚 アプリ内の問題集</h2>
       <div class="flex gap-2 flex-wrap items-center">
@@ -33,7 +32,6 @@
       <p id="bookMsg" class="text-sm text-gray-600"></p>
     </div>
 
-    <!-- 取り込み -->
     <div class="bg-white rounded-lg shadow p-5 space-y-3">
       <h2 class="font-bold text-lg">📥 Excelから取り込む</h2>
       <p class="text-xs text-gray-500">A:問題番号 / B:日本語 / C:英語 / D:例文の日本語 / E:例文の英語 / F:出題数 / G:正解数 / H:不正解数（1行目は見出し。番号列がなくても自動で振ります）</p>
@@ -44,7 +42,6 @@
       </div>
     </div>
 
-    <!-- バックアップ -->
     <div class="bg-white rounded-lg shadow p-5 space-y-3">
       <h2 class="font-bold text-lg">💾 バックアップ・受け渡し</h2>
       <div class="flex gap-2 flex-wrap">
@@ -57,7 +54,6 @@
       <p class="text-xs text-gray-500">JSONには全問題集と成績が入ります。別の端末で読み込めば同じ状態を再現できます。</p>
     </div>
 
-    <!-- 出題設定 -->
     <div class="bg-white rounded-lg shadow p-5 space-y-4">
       <h2 class="font-bold text-lg">⚙️ 出題の設定</h2>
       <div class="flex flex-wrap items-end gap-4">
@@ -104,16 +100,17 @@
     </div>
   </div>
 
-  <!-- 演習画面 -->
+  <!-- ===== 演習画面 ===== -->
   <div id="drillView" class="hidden space-y-4">
     <div class="bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-3 text-sm">
       <span id="progress" class="font-bold"></span>
       <span id="score" class="text-gray-600"></span>
+      <span id="speakFlag" class="hidden text-purple-600 font-bold">🔊 読み上げ中</span>
       <div class="ml-auto flex gap-2 flex-wrap">
         <button id="replayBtn" class="px-3 py-2 bg-purple-600 text-white rounded text-sm">🔊 もう一度</button>
         <button id="okBtn" class="px-3 py-2 bg-emerald-600 text-white rounded text-sm">⭕ 正解にする</button>
         <button id="nextBtn" class="px-3 py-2 bg-slate-600 text-white rounded text-sm">⏩ 次へ</button>
-        <button id="langBtn" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇬🇧 英語</button>
+        <button id="langBtn" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇬🇧 英語で聞き取り</button>
         <button id="micBtn" class="px-3 py-2 bg-green-600 text-white rounded text-sm">🎤 マイクON</button>
         <button id="quitBtn" class="px-3 py-2 bg-gray-500 text-white rounded text-sm">終了</button>
       </div>
@@ -127,7 +124,7 @@
       <div id="reveal" class="hidden mt-2 text-left bg-amber-50 border-2 border-amber-300 rounded-lg p-4 space-y-1">
         <p class="text-lg"><span class="font-bold">正解：</span><span id="ansEn" class="text-blue-700 font-bold"></span></p>
         <p id="ansExJp" class="text-sm text-gray-700"></p>
-        <p id="ansExEn" class="text-base text-blue-700 font-bold"></p>
+        <p id="ansExEn" class="text-base text-blue-700 font-bold hidden"></p>
       </div>
     </div>
 
@@ -140,775 +137,679 @@
     </div>
   </div>
 
-  <!-- 完了画面 -->
-  <div id="doneView" class="hidden bg-white rounded-lg shadow p-8 text-center space-y-4">
-    <div class="text-6xl">🏆</div>
-    <h2 class="text-2xl font-bold text-green-600">全問クリア！</h2>
-    <p id="doneStat" class="text-gray-700"></p>
-    <button id="againBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold">同じ表でもう一度</button>
-    <button id="backBtn" class="w-full py-3 bg-gray-500 text-white rounded-lg">最初の画面に戻る</button>
+  <!-- ===== 完了画面 ===== -->
+  <div id="doneView" class="hidden bg-white rounded-lg shadow p-8 space-y-4">
+    <div class="text-center space-y-2">
+      <div class="text-6xl">🏆</div>
+      <h2 class="text-2xl font-bold text-green-600">おつかれさま！</h2>
+      <p id="doneStat" class="text-gray-700"></p>
+    </div>
+
+    <!-- 見直しリスト -->
+    <div class="border-t pt-4">
+      <div class="flex flex-wrap items-center gap-2 mb-2">
+        <h3 class="font-bold">📋 今回の一覧</h3>
+        <span id="reviewCount" class="text-xs text-gray-500"></span>
+        <button id="toggleListBtn" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">🇯🇵 日本語に切り替え</button>
+        <label class="flex items-center gap-1 text-sm"><input type="checkbox" id="onlyWrong">間違えた問題だけ</label>
+      </div>
+      <p id="listMode" class="text-xs text-gray-500 mb-2"></p>
+      <ul id="reviewList" class="space-y-2"></ul>
+    </div>
+
+    <div class="space-y-2 pt-2">
+      <button id="saveBtn2" class="w-full py-3 bg-teal-600 text-white rounded-lg font-bold">💾 成績付きExcelを書き出す</button>
+      <button id="againBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold">同じ表でもう一度</button>
+      <button id="backBtn" class="w-full py-3 bg-gray-500 text-white rounded-lg">最初の画面に戻る</button>
+    </div>
   </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 'use strict';
-
 const $ = id => document.getElementById(id);
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 /* ===== 文字比較 ===== */
 const Match = {
-  norm(str) {
-    if (str === null || str === undefined) return '';
+  norm(str){
+    if(str===null || str===undefined) return '';
     let s = String(str);
-    try { s = s.normalize('NFKC'); } catch (e) {}
+    try { s = s.normalize('NFKC'); } catch(e){}
     s = s.toLowerCase();
     s = s.replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
     s = s.replace(/^(えーと|えっと|ええと|あのー|たぶん|多分|こたえは|答えは)+/g, '');
     s = s.replace(/^(to|a|an|the)\s+/g, '');
-    s = s.replace(/(です|ですね|だと思います)+$/g, '');
-    s = s.replace(/[\s\u3000ー－―‐・、。，．,.\-_!！?？"'「」『』（）()\[\]【】:：;；]/g, '');
+    s = s.replace(/[\s\u3000]/g, '');
+    s = s.replace(/[.,!?;:'"‘’“”\-–—_/\\|]/g, '');
+    s = s.replace(/[。、．，！？「」『』（）()\[\]【】]/g, '');
+    s = s.replace(/[～〜~]/g, '');
     return s;
   },
-  lev(a, b) {
-    if (a === b) return 0;
-    if (!a.length) return b.length;
-    if (!b.length) return a.length;
-    let prev = Array.from({length: b.length + 1}, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) {
-      const cur = [i];
-      for (let j = 1; j <= b.length; j++) {
-        cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  lev(a,b){
+    const m=a.length, n=b.length;
+    if(!m) return n; if(!n) return m;
+    let prev=new Array(n+1), cur=new Array(n+1);
+    for(let j=0;j<=n;j++) prev[j]=j;
+    for(let i=1;i<=m;i++){
+      cur[0]=i;
+      for(let j=1;j<=n;j++){
+        cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1] + (a[i-1]===b[j-1]?0:1));
       }
-      prev = cur;
+      const t=prev; prev=cur; cur=t;
     }
-    return prev[b.length];
+    return prev[n];
   },
-  variants(s) {
-    const dropTilde = t => String(t || '').replace(/[～〜~]/g, ' ').replace(/\s+/g, ' ').trim();
-    const dropParen = t => String(t || '')
-      .replace(/[（(\[【][^）)\]】]*[）)\]】]/g, ' ').replace(/\s+/g, ' ').trim();
-    const set = new Set();
-    [String(s || ''), dropParen(s)].forEach(base => {
-      const t = dropTilde(base);
-      if (t) set.add(t);
-      const p = t.replace(/[をにがはとへでのも]$/, '');
-      if (p) set.add(p);
-    });
-    return Array.from(set);
+  sim(a,b){
+    if(!a && !b) return 1;
+    const L = Math.max(a.length, b.length);
+    if(!L) return 1;
+    return 1 - this.lev(a,b)/L;
   },
-  base(input, answerText, tol) {
-    const a = this.norm(input);
-    if (!a) return false;
-    return String(answerText || '').split(/[、,／/｜|;；]/).some(part => {
-      const b = this.norm(part);
-      if (!b) return false;
-      if (a === b) return true;
-      if (b.length >= 4 && a.includes(b)) return true;
-      if (b.length <= 2) return false;
-      if (b.length <= 5) return this.lev(a, b) <= 1;
-      return this.lev(a, b) / Math.max(a.length, b.length) <= tol;
-    });
+  variants(str){
+    const out = new Set();
+    const add = x => { if(x && String(x).trim()) out.add(String(x)); };
+    const s = String(str||'');
+    add(s);
+    add(s.replace(/[（(][^）)]*[）)]/g,' '));      // 括弧内を削除
+    add(s.replace(/[（()）]/g,' '));                // 括弧だけ削除
+    const t = s.replace(/[～〜~]/g,' ');
+    add(t);
+    const head = s.split(/[～〜~]/)[0];
+    if(head && head !== s) add(head);
+    [s,t].forEach(x => x.split(/[\/／,、;；]/).forEach(p => add(p)));
+    return Array.from(out);
   },
-  loose(input, answerText, tol) {
-    if (this.base(input, answerText, tol)) return true;
-    const answers = this.variants(answerText);
-    const inputs = [String(input || '')].concat(this.variants(input));
-    for (const a of answers) {
-      for (const i of inputs) {
-        if (this.base(i, a, tol)) return true;
-      }
-    }
-    if (/[～〜~]\s*$/.test(String(answerText || ''))) {
-      const head = this.norm(String(answerText).replace(/[～〜~]/g, ''));
-      const said = this.norm(input);
-      if (head.length >= 3 && said.indexOf(head) === 0) return true;
+  loose(said, answer, tol){
+    const a = this.norm(said);
+    if(!a) return false;
+    const vs = this.variants(answer).map(v => this.norm(v)).filter(Boolean);
+    for(const v of vs){
+      if(a === v) return true;
+      if(Math.min(a.length, v.length) >= 4 && (a.includes(v) || v.includes(a))) return true;
+      if(this.sim(a,v) >= 1 - tol) return true;
     }
     return false;
   }
 };
 
-const PASS_WORDS = [
-  'パス','ぱす','バス','pass','スキップ','skip','とばす','飛ばす','つぎ','次','next',
-  'わからない','わかりません','わかんない','わからん','分からない','分かりません',
-  'しらない','知らない','知りません','こうさん','降参','ギブアップ','giveup','give up',
-  'dunno','noidea','no idea',"i don't know",'i do not know','むり','無理','お手上げ'
-];
-const REMIND_WORDS = [
-  'remind','remaind','rimaind','reminder','remind me','リマインド','りまいんど',
-  'リマインダー','りまいんだー','リマインドミー','覚える','おぼえる'
-];
-function hitWord(text, list, maxLen) {
-  const a = Match.norm(text);
-  if (!a || a.length > (maxLen || 14)) return false;
-  return list.some(w => {
-    const b = Match.norm(w);
-    if (!b) return false;
-    if (a === b) return true;
-    if (b.length >= 3 && a.includes(b)) return true;
-    return b.length >= 4 && Match.lev(a, b) <= 1;
-  });
+const PASS_WORDS   = ['パス','ぱす','pass','スキップ','skip','next','つぎ','次','わからない','わかりません','分からない','知らない'];
+const REMIND_WORDS = ['リマインド','りまいんど','remind','reminder','再出題','もう一度出して'];
+function hitWord(said, list){
+  const s = Match.norm(said);
+  if(!s || s.length > 14) return false;
+  return list.some(w => { const n = Match.norm(w); return n && (s === n || s.includes(n)); });
 }
-const isPass   = t => hitWord(t, PASS_WORDS);
-const isRemind = t => hitWord(t, REMIND_WORDS);
 
-/* ===== 問題集の保管庫 ===== */
-const Library = {
-  KEY: 'drill-books-v1',
-  books: {},
-  current: '',
-  load() {
-    try { this.books = JSON.parse(localStorage.getItem(this.KEY) || '{}'); }
-    catch (e) { this.books = {}; }
-  },
-  save() {
-    try { localStorage.setItem(this.KEY, JSON.stringify(this.books)); return true; }
-    catch (e) { alert('保存できませんでした（容量オーバーの可能性）：' + e.message); return false; }
-  },
-  names() { return Object.keys(this.books).sort(); },
-  put(name, items) {
-    this.books[name] = items.map(x => ({
-      no: x.no || 0, jp: x.jp, en: x.en, exJp: x.exJp, exEn: x.exEn,
-      tries: x.tries || 0, ok: x.ok || 0, ng: x.ng || 0
-    }));
-    return this.save();
-  },
-  remove(name) { delete this.books[name]; this.save(); },
-  syncCurrent() {
-    if (this.current && this.books[this.current]) this.put(this.current, loaded);
-  },
-  refreshUI() {
-    const sel = $('bookSelect');
-    const names = this.names();
-    sel.innerHTML = '';
-    if (!names.length) {
-      sel.innerHTML = '<option value="">（まだ保存されていません）</option>';
-    } else {
-      names.forEach(n => {
-        const o = document.createElement('option');
-        o.value = n;
-        o.textContent = `${n}（${this.books[n].length}問）`;
-        sel.appendChild(o);
-      });
-      if (this.current) sel.value = this.current;
-    }
-  }
-};
-Library.load();
-
-/* ===== 成績の保管 ===== */
+/* ===== 成績 ===== */
 const Stats = {
-  KEY: 'drill-stats-v2',
-  data: {},
-  load() {
-    try { this.data = JSON.parse(localStorage.getItem(this.KEY) || '{}'); }
-    catch (e) { this.data = {}; }
+  KEY:'drill-stats-v2', data:{},
+  load(){ try{ this.data = JSON.parse(localStorage.getItem(this.KEY)||'{}'); }catch(e){ this.data={}; } },
+  save(){ try{ localStorage.setItem(this.KEY, JSON.stringify(this.data)); }catch(e){} },
+  key(i){ return (i.jp||'') + '\u0001' + (i.en||''); },
+  attach(i){
+    const d = this.data[this.key(i)];
+    if(d){ i.tries=Math.max(i.tries||0,d.tries||0); i.ok=Math.max(i.ok||0,d.ok||0); i.ng=Math.max(i.ng||0,d.ng||0); }
   },
-  save() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
-  key(item) { return item.jp + '\u0001' + item.en; },
-  attach(item) {
-    const d = this.data[this.key(item)];
-    if (d) {
-      item.tries = Math.max(item.tries, d.tries || 0);
-      item.ok    = Math.max(item.ok,    d.ok    || 0);
-      item.ng    = Math.max(item.ng,    d.ng    || 0);
-    }
-  },
-  record(item, isCorrect) {
-    if (!item) return;
-    item.tries++;
-    if (isCorrect) item.ok++; else item.ng++;
-    this.data[this.key(item)] = { tries: item.tries, ok: item.ok, ng: item.ng };
-    this.save();
-  }
+  put(i){ this.data[this.key(i)] = {tries:i.tries||0, ok:i.ok||0, ng:i.ng||0}; this.save(); },
+  record(i, good){ if(!i) return; i.tries=(i.tries||0)+1; if(good) i.ok=(i.ok||0)+1; else i.ng=(i.ng||0)+1; this.put(i); },
+  fix(i){ if(!i) return; i.ng=Math.max(0,(i.ng||0)-1); i.ok=(i.ok||0)+1; this.put(i); }
 };
 Stats.load();
 
-/* ===== 状態 ===== */
-const S = {
-  all: [], queue: [], cur: null, stage: 'word', tries: 0,
-  correct: 0, wrong: 0, total: 0, locked: false, tol: 0.25, showMs: 6000
+/* ===== 問題集 ===== */
+let loaded = [];
+const Library = {
+  KEY:'drill-books-v1', books:{}, current:'',
+  load(){ try{ this.books = JSON.parse(localStorage.getItem(this.KEY)||'{}'); }catch(e){ this.books={}; } },
+  save(){ try{ localStorage.setItem(this.KEY, JSON.stringify(this.books)); }catch(e){ alert('保存できませんでした（容量オーバーかもしれません）'); } },
+  names(){ return Object.keys(this.books).sort(); },
+  put(name, items){
+    this.books[name] = items.map(x => ({no:x.no||0, jp:x.jp, en:x.en, exJp:x.exJp||'', exEn:x.exEn||'', tries:x.tries||0, ok:x.ok||0, ng:x.ng||0}));
+    this.save(); this.refresh();
+  },
+  del(name){ delete this.books[name]; this.save(); this.refresh(); },
+  refresh(){
+    const sel = $('bookSelect'), names = this.names();
+    sel.innerHTML = names.length
+      ? names.map(n => `<option value="${esc(n)}">${esc(n)}（${this.books[n].length}問）</option>`).join('')
+      : '<option value="">（まだ保存されていません）</option>';
+    if(this.current && names.indexOf(this.current) >= 0) sel.value = this.current;
+  },
+  persistCurrent(){ if(this.current && loaded.length) this.put(this.current, loaded); }
 };
+Library.load(); Library.refresh();
 
 /* ===== 読み上げ ===== */
 const Speaker = {
-  ready: 'speechSynthesis' in window,
-  unlocked: false, speaking: false, session: 0,
-  rate: 0.95,
-  unlock() {
-    if (!this.ready || this.unlocked) return;
-    try {
-      const u = new SpeechSynthesisUtterance(' ');
-      u.volume = 0;
-      speechSynthesis.speak(u);
-      this.unlocked = true;
-    } catch (e) {}
+  ok: ('speechSynthesis' in window), rate:0.95, unlocked:false,
+  unlock(){
+    if(!this.ok || this.unlocked) return;
+    try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); this.unlocked=true; }catch(e){}
   },
-  speak(list, lang, onDone) {
-    if (typeof list === 'string') list = [{ text: list, lang: lang || 'ja-JP' }];
-    list = (list || []).filter(x => x && String(x.text || '').trim());
-    if (!this.ready || !$('optSpeak').checked || !list.length) {
-      if (onDone) setTimeout(onDone, 200);
-      return;
-    }
-    const my = ++this.session;
-    try { speechSynthesis.cancel(); } catch (e) {}
-    Voice.pause();
-    this.speaking = true;
-    Voice.updateUI();
-
-    let i = 0, finished = false;
-    const finish = () => {
-      if (finished || my !== this.session) return;
-      finished = true;
-      this.speaking = false;
-      setTimeout(() => Voice.resume(), 400);
-      if (onDone) onDone();
-    };
-    const step = () => {
-      if (my !== this.session) return;
-      if (i >= list.length) return finish();
-      const it = list[i++];
-      try {
-        const u = new SpeechSynthesisUtterance(String(it.text));
-        u.lang = it.lang || 'ja-JP';
-        u.rate = this.rate;
-        u.onend = step;
-        u.onerror = step;
-        speechSynthesis.speak(u);
-      } catch (e) { finish(); }
-    };
-    setTimeout(finish, 25000);
-    step();
+  speak(text, lang, done){
+    const cb = (typeof done === 'function') ? done : function(){};
+    if(!this.ok || !$('optSpeak').checked || !text){ cb(); return; }
+    try{
+      speechSynthesis.cancel();
+      Voice.hold();
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.lang = lang || 'ja-JP';
+      u.rate = this.rate;
+      let fired = false;
+      const fin = () => {
+        if(fired) return; fired = true;
+        $('speakFlag').classList.add('hidden');
+        setTimeout(() => { Voice.release(); cb(); }, 400);
+      };
+      u.onend = fin; u.onerror = fin;
+      $('speakFlag').classList.remove('hidden');
+      speechSynthesis.speak(u);
+      setTimeout(fin, 3000 + String(text).length * 150);
+    }catch(e){ cb(); }
   }
 };
 
 /* ===== 音声認識 ===== */
 const Voice = {
-  rec: null, micActive: false, timer: null, lang: 'en-US',
-  stamps: [], blocked: false,
-  setup() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return false;
-    const rec = new SR();
-    rec.lang = this.lang;
-    rec.continuous = true;
-    rec.interimResults = false;
-    rec.maxAlternatives = 3;
-    rec.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (!e.results[i].isFinal) continue;
-        const alts = [];
-        for (let k = 0; k < e.results[i].length; k++) {
-          const t = (e.results[i][k].transcript || '').trim();
-          if (t) alts.push(t);
-        }
-        if (alts.length) Drill.onAnswer(alts, '聞こえた言葉');
+  SR: window.SpeechRecognition || window.webkitSpeechRecognition,
+  rec:null, on:false, holding:false, blocked:false, lang:'en-US', stamps:[],
+  setup(){
+    if(!this.SR) return false;
+    const r = new this.SR();
+    r.lang = this.lang; r.continuous = true; r.interimResults = false;
+    try{ r.maxAlternatives = 5; }catch(e){}
+    r.onresult = e => {
+      const alts = [];
+      for(let i = e.resultIndex; i < e.results.length; i++){
+        const res = e.results[i];
+        for(let j = 0; j < res.length; j++) alts.push(res[j].transcript);
+      }
+      if(alts.length) Drill.onAnswer(alts, false);
+    };
+    r.onerror = e => {
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        this.blocked = true; this.on = false; this.paint();
+        alert('マイクが使えません。ブラウザのマイク許可を確認してください。');
       }
     };
-    rec.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        this.blocked = true; this.micActive = false; this.updateUI();
-        alert('マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。');
-      }
-    };
-    rec.onend = () => {
-      if (this.micActive && !Speaker.speaking) {
-        clearTimeout(this.timer);
-        this.timer = setTimeout(() => this.launch(), 300);
-      }
-      this.updateUI();
-    };
-    this.rec = rec;
+    r.onend = () => { if(this.on && !this.holding) this.kick(); else this.paint(); };
+    this.rec = r;
     return true;
   },
-  launch() {
-    if (!this.rec || this.blocked || !this.micActive || Speaker.speaking) return;
+  kick(){
+    if(this.blocked || !this.rec) return;
     const now = Date.now();
     this.stamps = this.stamps.filter(t => now - t < 10000);
-    if (this.stamps.length >= 15) {
-      this.blocked = true; this.micActive = false; this.updateUI();
-      alert('音声認識が繰り返し起動したため停止しました。ページを再読み込みしてください。');
-      return;
-    }
+    if(this.stamps.length >= 15){ this.on = false; this.paint(); return; }
     this.stamps.push(now);
-    try { this.rec.start(); } catch (e) {}
-    this.updateUI();
+    try{ this.rec.lang = this.lang; this.rec.start(); }catch(e){}
   },
-  start() {
-    if (!this.rec) { alert('このブラウザは音声入力に対応していません（Chrome推奨）'); return; }
-    this.micActive = true;
-    this.launch();
-  },
-  pause() { clearTimeout(this.timer); try { this.rec && this.rec.stop(); } catch (e) {} },
-  resume() { if (!Speaker.speaking) this.launch(); },
-  stop() {
-    this.micActive = false;
-    clearTimeout(this.timer);
-    try { this.rec && this.rec.stop(); } catch (e) {}
-    this.updateUI();
-  },
-  toggle() { this.micActive ? this.stop() : this.start(); },
-  setLang(lang) {
-    this.lang = lang;
-    if (!this.rec) return;
-    this.rec.lang = lang;
-    if (this.micActive) { try { this.rec.stop(); } catch (e) {} }
-    this.updateUI();
-  },
-  toggleLang() { this.setLang(this.lang === 'en-US' ? 'ja-JP' : 'en-US'); },
-  updateUI() {
-    const m = $('micBtn'), l = $('langBtn');
-    if (m) {
-      if (Speaker.speaking) {
-        m.textContent = '🔊 読み上げ中';
-        m.className = 'px-3 py-2 rounded text-sm text-white bg-purple-600';
-      } else {
-        m.textContent = this.micActive ? '🔴 停止' : '🎤 マイクON';
-        m.className = 'px-3 py-2 rounded text-sm text-white ' + (this.micActive ? 'bg-red-600' : 'bg-green-600');
-      }
+  start(){ if(!this.rec) return; this.on = true; this.holding = false; this.kick(); this.paint(); },
+  stop(){ this.on = false; this.holding = false; try{ this.rec && this.rec.abort(); }catch(e){} this.paint(); },
+  hold(){ if(!this.on) return; this.holding = true; try{ this.rec.abort(); }catch(e){} },
+  release(){ if(!this.on) return; this.holding = false; this.kick(); },
+  setLang(l){
+    this.lang = l;
+    if(this.on){
+      this.holding = true;
+      try{ this.rec.abort(); }catch(e){}
+      setTimeout(() => { if(this.on){ this.holding = false; this.kick(); } }, 250);
     }
-    if (l) l.textContent = this.lang === 'en-US' ? '🇬🇧 英語' : '🇯🇵 日本語';
+    this.paint();
+  },
+  toggle(){ this.on ? this.stop() : this.start(); },
+  paint(){
+    const b = $('micBtn');
+    if(!this.rec){ b.textContent = '🎤 非対応'; b.className = 'px-3 py-2 bg-gray-400 text-white rounded text-sm'; }
+    else if(this.on){ b.textContent = '🎤 マイクON'; b.className = 'px-3 py-2 bg-green-600 text-white rounded text-sm'; }
+    else { b.textContent = '🎤 マイクOFF'; b.className = 'px-3 py-2 bg-gray-500 text-white rounded text-sm'; }
+    $('langBtn').textContent = (this.lang === 'en-US') ? '🇬🇧 英語で聞き取り' : '🇯🇵 日本語で聞き取り';
   }
 };
+Voice.setup(); Voice.paint();
+
+/* ===== 状態 ===== */
+const S = { queue:[], cur:null, stage:'word', total:0, correct:0, wrong:0,
+            lock:false, timers:[], pending:null, countedWrong:false, needRequeue:false,
+            tries:0, session:[], listenTimer:null };
+
+function clearTimers(){ S.timers.forEach(clearTimeout); S.timers = []; S.pending = null; S.listenTimer = null; }
+function later(ms, fn){ S.pending = fn; const t = setTimeout(() => { S.pending = null; fn(); }, ms); S.timers.push(t); }
+function showMs(){ return parseInt($('optShow').value,10) || 6000; }
+function tolVal(){ return parseFloat($('optTolerance').value) || 0.25; }
+function sess(item){
+  let e = S.session.find(x => x.item === item);
+  if(!e){ e = {item:item, ok:null}; S.session.push(e); }
+  return e;
+}
 
 /* ===== ドリル本体 ===== */
 const Drill = {
-  timer: null,
-  begin(items) {
-    S.all = items;
-    S.tol = parseFloat($('optTolerance').value);
-    S.showMs = parseInt($('optShow').value, 10) || 6000;
+  begin(list){
+    clearTimers();
+    S.queue = list.slice(); S.total = list.length;
+    S.correct = 0; S.wrong = 0; S.session = []; S.cur = null;
     $('setupView').classList.add('hidden');
     $('doneView').classList.add('hidden');
     $('drillView').classList.remove('hidden');
-    Voice.updateUI();
-    if ($('optAutoMic').checked) Voice.start();
-    this.restart();
-  },
-  restart() {
-    let list = S.all.slice();
-    const from = parseInt($('optFrom').value, 10);
-    const to   = parseInt($('optTo').value, 10);
-    if (!isNaN(from)) list = list.filter(x => x.no >= from);
-    if (!isNaN(to))   list = list.filter(x => x.no <= to);
-    if (!list.length) {
-      alert('その問題番号の範囲には問題がありません。範囲を見直してください。');
-      Voice.stop();
-      $('drillView').classList.add('hidden');
-      $('setupView').classList.remove('hidden');
-      return;
-    }
-    list.forEach(x => { x.remind = false; });
-    if ($('optShuffle').checked) list.sort(() => Math.random() - 0.5);
-    const n = parseInt($('optCount').value, 10);
-    if (n > 0) list = list.slice(0, n);
-    S.queue = list;
-    S.correct = 0; S.wrong = 0; S.total = list.length;
+    Speaker.unlock();
+    if($('optAutoMic').checked && Voice.rec && !Voice.blocked) Voice.start(); else Voice.paint();
     this.next();
   },
-  hud() {
+  paintHead(){
     $('progress').textContent = `残り ${new Set(S.queue).size} 問（出題待ち ${S.queue.length} 回）/ 全 ${S.total} 問`;
-    $('score').textContent = `正解 ${S.correct} ・ 不正解 ${S.wrong}`;
+    $('score').textContent = `⭕ ${S.correct}　❌ ${S.wrong}`;
   },
-  wait(ms, fn) { clearTimeout(this.timer); this.timer = setTimeout(fn, ms); },
-  next() {
-    clearTimeout(this.timer);
-    S.locked = false; S.stage = 'word'; S.tries = 0;
-    $('reveal').classList.add('hidden');
-    $('judge').textContent = '';
+  armMic(){ if($('optAutoMic').checked && Voice.rec && !Voice.on && !Voice.blocked) Voice.start(); },
+  armTimeout(fn){
+    const t = setTimeout(() => { if(!S.lock) fn(); }, 25000);
+    S.listenTimer = t; S.timers.push(t);
+  },
+  next(){
+    clearTimers();
+    S.lock = false; S.countedWrong = false; S.needRequeue = false; S.tries = 0;
+    if(!S.queue.length){ this.finish(); return; }
+    S.cur = S.queue[0]; S.stage = 'word';
+    sess(S.cur);
+    $('judge').textContent = ''; $('judge').className = 'mt-4 text-6xl h-16';
     $('heard').textContent = '';
+    $('reveal').classList.add('hidden');
+    $('ansExEn').classList.add('hidden');
+    $('stageBox').classList.remove('border-red-400','border-green-400','shake');
+    $('prompt').textContent = 'この日本語を英語で答えてください';
+    $('question').textContent = (S.cur.no ? 'No.' + S.cur.no + '　' : '') + S.cur.jp;
     $('textInput').value = '';
-    $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-transparent';
-    if (S.queue.length === 0) return this.finish();
-    S.cur = S.queue[0];
-    $('prompt').textContent = `No.${S.cur.no}　この日本語を英語で答えてください` + (S.cur.remind ? '（🔁 リマインド中）' : '');
-    $('question').textContent = S.cur.jp;
-    this.hud();
-    Speaker.speak(S.cur.jp, 'ja-JP');
+    this.paintHead();
+    Voice.setLang('en-US');
+    Speaker.speak(S.cur.jp, 'ja-JP', () => { this.armMic(); this.armTimeout(() => this.wrong(true)); });
   },
-  replay() {
-    if (!S.cur) return;
-    if (S.stage === 'word') Speaker.speak(S.cur.jp, 'ja-JP');
-    else if (S.stage === 'example') Speaker.speak(S.cur.exJp, 'ja-JP');
-    else Speaker.speak([{ text: S.cur.exEn, lang: 'en-US' }]);
-  },
-  onAnswer(alts, label) {
-    if (S.locked || !S.cur) return;
-    if (!Array.isArray(alts)) alts = [alts];
-    alts = alts.filter(t => String(t || '').trim());
-    if (!alts.length) return;
-    $('heard').textContent = (label || '入力') + '：' + alts[0];
-
-    if (S.stage === 'word') {
-      if (alts.some(t => Match.loose(t, S.cur.en, S.tol))) return this.wordCorrect();
-      if (alts.some(isRemind)) { S.cur.remind = true; return this.wordWrong(true); }
-      return this.wordWrong(alts.some(isPass));
+  onAnswer(alts, typed){
+    if(S.lock || !S.cur) return;
+    const arr = Array.isArray(alts) ? alts : [alts];
+    if(arr[0]) $('heard').textContent = '聞き取り：' + arr[0];
+    const target = (S.stage === 'word') ? S.cur.en : S.cur.exEn;
+    if(S.stage === 'word'){
+      if(arr.some(a => hitWord(a, REMIND_WORDS))){ this.remind(); return; }
+      if(arr.some(a => hitWord(a, PASS_WORDS))){ this.wrong(true); return; }
+    }else{
+      if(arr.some(a => hitWord(a, PASS_WORDS))){
+        if(S.stage === 'example') this.exampleNG(); else this.repeatGiveUp();
+        return;
+      }
     }
-    if (S.stage === 'example') {
-      if (alts.some(t => Match.loose(t, S.cur.exEn, S.tol))) return this.exampleEnd(true);
-      if (alts.some(isPass) || alts.some(isRemind)) return this.exampleEnd(false);
-      S.tries++;
-      $('judge').textContent = '❌';
-      $('judge').className = 'mt-4 text-6xl h-16 shake';
-      if (S.tries >= 3) return this.exampleEnd(false);
+    if(arr.some(a => Match.loose(a, target, tolVal()))){
+      if(S.stage === 'word') this.correct();
+      else if(S.stage === 'example') this.exampleOK();
+      else this.repeatOK();
       return;
     }
-    if (alts.some(t => Match.loose(t, S.cur.exEn, Math.max(S.tol, 0.4)))) return this.repeatEnd(true);
-    if (alts.some(isPass)) return this.repeatEnd(false);
-    S.tries++;
-    $('judge').textContent = '🔁';
-    $('judge').className = 'mt-4 text-6xl h-16 shake';
-    if (S.tries >= 3) return this.repeatEnd(false);
+    if(typed){
+      if(S.stage === 'word') this.wrong(false);
+      else if(S.stage === 'example') this.exampleNG();
+      else this.repeatMiss();
+    }
   },
-  wordCorrect() {
-    S.locked = true;
-    S.correct++;
+  correct(){
+    S.lock = true; S.correct++;
     Stats.record(S.cur, true);
-    const item = S.queue.shift();
-    if (item.remind) {
-      item.remind = false;
-      S.queue = S.queue.filter(x => x !== item);
-    }
-    const left = S.queue.filter(x => x === item).length;
-    $('judge').textContent = left > 0 ? '⭕' : '💯';
-    $('judge').className = 'mt-4 text-6xl h-16 pop';
-    this.hud();
-    this.wait(900, () => this.next());
+    const e = sess(S.cur); if(e.ok === null) e.ok = true;
+    S.cur.remindOn = false;
+    $('judge').textContent = '⭕'; $('judge').className = 'mt-4 text-6xl h-16 pop';
+    $('stageBox').classList.add('border-green-400');
+    if(S.queue[0] === S.cur) S.queue.shift();
+    this.paintHead();
+    later(900, () => this.next());
   },
-  wordWrong(passed) {
-    S.locked = true;
-    S.wrong++;
+  wrong(passed){
+    S.lock = true; S.wrong++; S.countedWrong = true; S.needRequeue = true;
     Stats.record(S.cur, false);
-    $('judge').textContent = passed ? '⏭️' : '❌';
-    $('judge').className = 'mt-4 text-6xl h-16 shake';
-    $('ansEn').textContent = S.cur.en + (S.cur.remind ? '　🔁 リマインド登録' : '');
-    $('ansExJp').textContent = '';
-    $('ansExEn').textContent = '';
+    const e = sess(S.cur); if(e.ok === null) e.ok = false;
+    $('judge').textContent = passed ? '⏭️' : '❌'; $('judge').className = 'mt-4 text-6xl h-16 pop';
+    $('stageBox').classList.add('border-red-400','shake');
+    $('ansEn').textContent = S.cur.en;
+    $('ansExJp').textContent = S.cur.exJp ? '例文：' + S.cur.exJp : '';
+    $('ansExEn').textContent = S.cur.exEn || '';
+    $('ansExEn').classList.add('hidden');
     $('reveal').classList.remove('hidden');
-    this.hud();
-    const useEx = $('optExample').checked && S.cur.exJp && S.cur.exEn;
-    Speaker.speak([{ text: S.cur.en.replace(/[～〜~]/g, ' '), lang: 'en-US' }], null, () => {
-      if (useEx) this.askExample();
-      else this.wait(S.showMs, () => { this.requeue(); this.next(); });
+    this.paintHead();
+    Speaker.speak(S.cur.en, 'en-US', () => {
+      const hasEx = $('optExample').checked && S.cur.exJp && S.cur.exEn;
+      later(hasEx ? 1500 : showMs(), () => { hasEx ? this.startExample() : this.advance(); });
     });
   },
-  askExample() {
-    S.stage = 'example'; S.locked = false; S.tries = 0;
-    $('judge').textContent = '';
-    $('heard').textContent = '';
-    $('textInput').value = '';
-    $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-amber-400';
-    $('prompt').textContent = '📝 この例文を英語で言ってください';
+  remind(){
+    S.lock = true; S.needRequeue = true; S.cur.remindOn = true;
+    $('judge').textContent = '🔁'; $('judge').className = 'mt-4 text-6xl h-16 pop';
+    $('ansEn').textContent = S.cur.en;
+    $('ansExJp').textContent = S.cur.exJp ? '例文：' + S.cur.exJp : '';
+    $('ansExEn').textContent = S.cur.exEn || '';
+    $('ansExEn').classList.remove('hidden');
+    $('reveal').classList.remove('hidden');
+    Speaker.speak(S.cur.en, 'en-US', () => later(showMs(), () => this.advance()));
+  },
+  startExample(){
+    S.lock = false; S.stage = 'example';
+    $('judge').textContent = ''; $('judge').className = 'mt-4 text-6xl h-16';
+    $('stageBox').classList.remove('shake');
+    $('prompt').textContent = 'この例文を英語で言ってみましょう';
     $('question').textContent = S.cur.exJp;
-    if ($('optAutoMic').checked) Voice.start();
-    Speaker.speak(S.cur.exJp, 'ja-JP');
+    $('heard').textContent = ''; $('textInput').value = '';
+    Voice.setLang('en-US');
+    Speaker.speak(S.cur.exJp, 'ja-JP', () => { this.armMic(); this.armTimeout(() => this.exampleNG()); });
   },
-  exampleEnd(ok) {
-    S.locked = true;
-    $('judge').textContent = ok ? '⭕' : '❌';
-    $('judge').className = 'mt-4 text-6xl h-16 ' + (ok ? 'pop' : 'shake');
-    $('ansExJp').textContent = '例文：' + S.cur.exJp;
-    $('ansExEn').textContent = S.cur.exEn;
-    $('reveal').classList.remove('hidden');
-    const train = !ok && $('optRepeat').checked;
-    Speaker.speak([{ text: S.cur.exEn, lang: 'en-US' }], null, () => {
-      if (train) this.askRepeat();
-      else this.wait(S.showMs, () => { this.requeue(); this.next(); });
+  exampleOK(){
+    S.lock = true;
+    $('judge').textContent = '👏'; $('judge').className = 'mt-4 text-6xl h-16 pop';
+    $('ansExEn').classList.remove('hidden');
+    Speaker.speak(S.cur.exEn, 'en-US', () => later(showMs(), () => this.advance()));
+  },
+  exampleNG(){
+    S.lock = true;
+    $('judge').textContent = '❌'; $('judge').className = 'mt-4 text-6xl h-16 pop';
+    $('ansExEn').classList.remove('hidden');
+    const rep = $('optRepeat').checked;
+    Speaker.speak(S.cur.exEn, 'en-US', () => later(rep ? 800 : showMs(), () => { rep ? this.startRepeat() : this.advance(); }));
+  },
+  startRepeat(){
+    S.lock = false; S.stage = 'repeat'; S.tries = 0;
+    $('judge').textContent = ''; $('judge').className = 'mt-4 text-6xl h-16';
+    $('prompt').textContent = '正解を見ながら、声に出して練習しましょう（3回まで）';
+    $('question').textContent = S.cur.exEn;
+    $('heard').textContent = ''; $('textInput').value = '';
+    $('ansExEn').classList.remove('hidden');
+    Voice.setLang('en-US');
+    this.armMic(); this.armTimeout(() => this.repeatMiss());
+  },
+  repeatOK(){
+    S.lock = true;
+    $('judge').textContent = '👏'; $('judge').className = 'mt-4 text-6xl h-16 pop';
+    later(1200, () => this.advance());
+  },
+  repeatMiss(){
+    S.tries++;
+    if(S.tries >= 3){ this.repeatGiveUp(); return; }
+    S.lock = true;
+    $('judge').textContent = '🔁';
+    Speaker.speak(S.cur.exEn, 'en-US', () => {
+      S.lock = false; $('judge').textContent = '';
+      this.armMic(); this.armTimeout(() => this.repeatMiss());
     });
   },
-  askRepeat() {
-    S.stage = 'repeat'; S.locked = false; S.tries = 0;
-    $('judge').textContent = '';
-    $('heard').textContent = '';
-    $('textInput').value = '';
-    $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-purple-400';
-    $('prompt').textContent = '🗣️ お手本のあとに、同じ英文を声に出してみましょう';
-    $('question').textContent = S.cur.exEn;
-    if ($('optAutoMic').checked) Voice.start();
-    Speaker.speak([{ text: S.cur.exEn, lang: 'en-US' }]);
+  repeatGiveUp(){
+    S.lock = true;
+    $('judge').textContent = '➡️';
+    later(1200, () => this.advance());
   },
-  repeatEnd(ok) {
-    S.locked = true;
-    $('judge').textContent = ok ? '👏' : '➡️';
-    $('judge').className = 'mt-4 text-6xl h-16 ' + (ok ? 'pop' : '');
-    this.wait(ok ? 1500 : S.showMs, () => { this.requeue(); this.next(); });
-  },
-  requeue() {
-    const item = S.queue.shift();
-    if (!item) return;
-    const others = S.queue.filter(x => x !== item).length;
-    const pending = S.queue.filter(x => x === item).length;
-    if (item.remind) {
-      S.queue.splice(Math.min(2, others), 0, item);
-    } else if (pending === 0) {
-      S.queue.splice(Math.min(2, others), 0, item);
-      if (others >= 1) S.queue.push(item);
-    } else if (pending === 1 && others >= 1) {
-      S.queue.splice(Math.min(2, others), 0, item);
+  advance(){
+    clearTimers();
+    if(S.needRequeue && S.queue.length && S.queue[0] === S.cur){
+      const it = S.queue.shift();
+      const pos = Math.min(2, S.queue.length);
+      S.queue.splice(pos, 0, it);
     }
-  },
-  forceCorrect() {
-    if (!S.cur) return;
-    clearTimeout(this.timer);
-    try { speechSynthesis.cancel(); } catch (e) {}
-    Speaker.speaking = false;
-    Speaker.session++;
-    if (S.stage === 'word') {
-      if (S.locked) {
-        const it = S.cur;
-        S.wrong--;
-        it.tries = Math.max(0, it.tries - 1);
-        it.ng    = Math.max(0, it.ng - 1);
-        Stats.data[Stats.key(it)] = { tries: it.tries, ok: it.ok, ng: it.ng };
-        Stats.save();
-        S.locked = false;
-      }
-      return this.wordCorrect();
-    }
-    if (S.stage === 'example') return this.exampleEnd(true);
-    return this.repeatEnd(true);
-  },
-  skip() {
-    clearTimeout(this.timer);
-    try { speechSynthesis.cancel(); } catch (e) {}
-    Speaker.speaking = false;
-    Speaker.session++;
-    if (S.stage === 'word' && !S.locked) { this.wordWrong(true); return; }
-    this.requeue();
     this.next();
   },
-  finish() {
-    S.cur = null;
-    Voice.stop();
-    try { speechSynthesis.cancel(); } catch (e) {}
-    Library.syncCurrent();
+  forceCorrect(){
+    if(!S.cur) return;
+    clearTimers();
+    try{ speechSynthesis.cancel(); }catch(e){}
+    $('speakFlag').classList.add('hidden');
+    if(S.stage === 'word'){
+      if(S.countedWrong){
+        S.wrong = Math.max(0, S.wrong - 1);
+        Stats.fix(S.cur);
+        S.countedWrong = false; S.needRequeue = false;
+        sess(S.cur).ok = true;
+      }
+      S.lock = false; this.correct();
+    }else{
+      S.lock = true;
+      $('judge').textContent = '👏'; $('judge').className = 'mt-4 text-6xl h-16 pop';
+      $('ansExEn').classList.remove('hidden');
+      later(700, () => this.advance());
+    }
+  },
+  jump(){
+    if(S.pending){ const f = S.pending; clearTimers(); f(); }
+    else if(!S.lock) this.wrong(true);
+  },
+  replay(){
+    if(!S.cur) return;
+    if(S.stage === 'word') Speaker.speak(S.cur.jp, 'ja-JP', () => this.armMic());
+    else if(S.stage === 'example') Speaker.speak(S.cur.exJp, 'ja-JP', () => this.armMic());
+    else Speaker.speak(S.cur.exEn, 'en-US', () => this.armMic());
+  },
+  finish(){
+    clearTimers(); Voice.stop();
+    try{ speechSynthesis.cancel(); }catch(e){}
+    $('speakFlag').classList.add('hidden');
+    Library.persistCurrent();
     $('drillView').classList.add('hidden');
     $('doneView').classList.remove('hidden');
-    const rate = (S.correct + S.wrong) ? Math.round(S.correct / (S.correct + S.wrong) * 100) : 0;
-    $('doneStat').textContent = `全 ${S.total} 問を制覇しました。正解 ${S.correct} 回 / 不正解 ${S.wrong} 回（正答率 ${rate}%）`;
+    const done = S.session.length;
+    const ok = S.session.filter(x => x.ok === true).length;
+    $('doneStat').textContent = `出題 ${done} 問中、一発正解 ${ok} 問（⭕ ${S.correct} 回 / ❌ ${S.wrong} 回）`;
+    Review.mode = 'en';
+    $('onlyWrong').checked = false;
+    Review.build();
   }
 };
 
-/* ===== 問題集の読み込みと管理 ===== */
-let loaded = [];
-function makeItem(r, off) {
-  if (Array.isArray(r)) {
-    const o = off || 0;
-    return {
-      no:   o ? (Number(r[0]) || 0) : 0,
-      jp:   String(r[o]   || '').trim(),
-      en:   String(r[o+1] || '').trim(),
-      exJp: String(r[o+2] || '').trim(),
-      exEn: String(r[o+3] || '').trim(),
-      tries: Number(r[o+4]) || 0,
-      ok:    Number(r[o+5]) || 0,
-      ng:    Number(r[o+6]) || 0,
-      remind: false
-    };
-  }
-  return {
-    no:   Number(r.no) || 0,
-    jp:   String(r.jp   || '').trim(),
-    en:   String(r.en   || '').trim(),
-    exJp: String(r.exJp || '').trim(),
-    exEn: String(r.exEn || '').trim(),
-    tries: Number(r.tries) || 0,
-    ok:    Number(r.ok)    || 0,
-    ng:    Number(r.ng)    || 0,
-    remind: false
-  };
+/* ===== 見直しリスト ===== */
+const Review = {
+  mode:'en',
+  rows(){
+    const only = $('onlyWrong').checked;
+    return S.session.filter(e => !only || e.ok === false);
+  },
+  build(){
+    const rows = this.rows(), list = $('reviewList');
+    if(!rows.length){
+      list.innerHTML = '<li class="text-sm text-gray-500">表示する問題がありません。</li>';
+    }else{
+      list.innerHTML = rows.map((e, idx) => {
+        const it = e.item;
+        const mark = (e.ok === false) ? '❌' : '⭕';
+        const main = (this.mode === 'en') ? it.en : it.jp;
+        const sub  = (this.mode === 'en') ? (it.exEn || '') : (it.exJp || '');
+        const cls  = (this.mode === 'en') ? 'text-blue-700' : 'text-gray-800';
+        return `<li class="review-row border rounded p-2 bg-gray-50 hover:bg-blue-50 cursor-pointer" data-i="${idx}">
+          <span class="text-xs text-gray-500 mr-2">${it.no ? 'No.' + it.no : (idx+1)}</span>
+          <span class="mr-1">${mark}</span>
+          <span class="font-bold ${cls} break-words">${esc(main)}</span>
+          ${sub ? `<span class="block text-xs text-gray-500 mt-1 break-words">${esc(sub)}</span>` : ''}
+        </li>`;
+      }).join('');
+      Array.prototype.forEach.call(list.querySelectorAll('.review-row'), li => {
+        li.addEventListener('click', () => {
+          const e = rows[parseInt(li.dataset.i, 10)];
+          if(e) Speaker.speak(e.item.en, 'en-US');
+        });
+      });
+    }
+    $('reviewCount').textContent = `${rows.length} 件`;
+    $('toggleListBtn').textContent = (this.mode === 'en') ? '🇯🇵 日本語に切り替え' : '🇬🇧 英語に切り替え';
+    $('listMode').textContent = ((this.mode === 'en') ? '英語で表示中' : '日本語で表示中') + '（行をタップすると英語を読み上げます）';
+  },
+  toggle(){ this.mode = (this.mode === 'en') ? 'jp' : 'en'; this.build(); }
+};
+
+/* ===== 読み込み ===== */
+let loadedHeader = [];
+function makeItem(r, off){
+  const g = i => String(r[i+off] === undefined || r[i+off] === null ? '' : r[i+off]).trim();
+  const n = i => Number(r[i+off]) || 0;
+  return { no: off ? (Number(r[0]) || 0) : 0, jp:g(0), en:g(1), exJp:g(2), exEn:g(3), tries:n(4), ok:n(5), ng:n(6) };
 }
-function setLoaded(items, label) {
-  loaded = items.filter(x => x.jp && x.en);
-  loaded.forEach((x, i) => { if (!x.no) x.no = i + 1; });
-  loaded.forEach(x => Stats.attach(x));
-  const nos = loaded.map(x => x.no);
-  const lo = nos.length ? Math.min.apply(null, nos) : 0;
-  const hi = nos.length ? Math.max.apply(null, nos) : 0;
-  $('setupMsg').textContent = `${label}：${loaded.length} 問を使用します。`;
-  $('optCount').max = loaded.length;
-  $('countHint').textContent = `空欄なら全${loaded.length}問`;
-  $('rangeHint').textContent = `この問題集は No.${lo}〜${hi}`;
-  $('startBtn').disabled = loaded.length === 0;
+function setLoaded(items, label){
+  loaded = items;
+  loaded.forEach((x,i) => { if(!x.no) x.no = i + 1; Stats.attach(x); });
+  if(loaded.length){
+    const nos = loaded.map(x => x.no);
+    $('rangeHint').textContent = `空欄なら全範囲（この問題集は ${Math.min.apply(null,nos)}〜${Math.max.apply(null,nos)}）`;
+    $('countHint').textContent = `空欄なら全問（最大 ${loaded.length} 問）`;
+  }else{
+    $('rangeHint').textContent = '空欄なら全範囲';
+    $('countHint').textContent = '空欄なら全問';
+  }
+  $('startBtn').disabled = (loaded.length === 0);
+  $('setupMsg').textContent = loaded.length ? `${label}：${loaded.length}問を読み込みました。` : '';
 }
 
-$('fileInput').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    try {
-      const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+$('fileInput').addEventListener('change', ev => {
+  const f = ev.target.files[0]; if(!f) return;
+  const fr = new FileReader();
+  fr.onload = e => {
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      const body = rows.slice(1).filter(r => r && r.length);
-      const numish = body.filter(r => String(r[0] || '').trim() !== '' && !isNaN(Number(r[0]))).length;
-      const off = (body.length && numish >= body.length * 0.8) ? 1 : 0;
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if(rows.length < 2){ alert('データが見つかりません。'); return; }
+      loadedHeader = rows[0] || [];
+      const body = rows.slice(1).filter(r => r && r.join('').trim() !== '');
+      let hits = 0;
+      body.slice(0,10).forEach(r => {
+        if(String(r[0]).trim() !== '' && !isNaN(Number(r[0])) &&
+           String(r[1]||'').trim() !== '' && String(r[2]||'').trim() !== '') hits++;
+      });
+      const off = (hits >= Math.min(3, body.length)) ? 1 : 0;
+      const items = body.map(r => makeItem(r, off)).filter(x => x.jp && x.en);
+      if(!items.length){ alert('日本語と英語の列を読み取れませんでした。'); return; }
       Library.current = '';
-      setLoaded(body.map(r => makeItem(r, off)),
-                off ? 'Excelから読み込み（A列=問題番号）' : 'Excelから読み込み');
-      $('saveBookBtn').disabled = loaded.length === 0;
-      if (!$('bookName').value) $('bookName').value = file.name.replace(/\.[^.]+$/, '');
-    } catch (err) {
-      $('setupMsg').textContent = '読み込みに失敗しました：' + err.message;
-    }
+      setLoaded(items, f.name);
+      $('saveBookBtn').disabled = false;
+      if(!$('bookName').value) $('bookName').value = f.name.replace(/\.(xlsx|xls)$/i,'');
+    }catch(err){ alert('読み込みに失敗しました：' + err.message); }
   };
-  reader.readAsArrayBuffer(file);
+  fr.readAsArrayBuffer(f);
 });
 
 $('saveBookBtn').addEventListener('click', () => {
-  const name = ($('bookName').value || '').trim();
-  if (!name) { alert('問題集の名前を入力してください。'); return; }
-  if (Library.books[name] && !confirm(`「${name}」は既にあります。上書きしますか？`)) return;
-  if (Library.put(name, loaded)) {
-    Library.current = name;
-    Library.refreshUI();
-    $('bookMsg').textContent = `「${name}」をアプリに保存しました。次回からファイル選択なしで使えます。`;
-  }
+  const name = $('bookName').value.trim();
+  if(!name){ alert('問題集の名前を入れてください。'); return; }
+  if(!loaded.length){ alert('先にExcelを読み込んでください。'); return; }
+  Library.put(name, loaded);
+  Library.current = name; Library.refresh();
+  $('bookMsg').textContent = `「${name}」を保存しました（${loaded.length}問）。`;
 });
-
 $('useBookBtn').addEventListener('click', () => {
   const name = $('bookSelect').value;
-  if (!name || !Library.books[name]) { alert('問題集を選んでください。'); return; }
+  if(!name || !Library.books[name]){ alert('問題集がありません。'); return; }
+  const items = Library.books[name].map(x => Object.assign({}, x));
   Library.current = name;
-  setLoaded(Library.books[name].map(r => makeItem(r)), `「${name}」`);
-  $('bookMsg').textContent = `「${name}」を選択中です。`;
+  setLoaded(items, name);
+  $('bookMsg').textContent = `「${name}」を使います。`;
 });
-
 $('renameBookBtn').addEventListener('click', () => {
   const name = $('bookSelect').value;
-  if (!name || !Library.books[name]) return;
-  const nn = (prompt('新しい名前', name) || '').trim();
-  if (!nn || nn === name) return;
-  if (Library.books[nn] && !confirm(`「${nn}」は既にあります。上書きしますか？`)) return;
+  if(!name || !Library.books[name]) return;
+  const nn = prompt('新しい名前', name);
+  if(!nn || nn === name) return;
   Library.books[nn] = Library.books[name];
   delete Library.books[name];
-  Library.save();
-  if (Library.current === name) Library.current = nn;
-  Library.refreshUI();
+  if(Library.current === name) Library.current = nn;
+  Library.save(); Library.refresh();
 });
-
 $('delBookBtn').addEventListener('click', () => {
   const name = $('bookSelect').value;
-  if (!name || !Library.books[name]) return;
-  if (!confirm(`「${name}」を削除します。よろしいですか？`)) return;
-  Library.remove(name);
-  if (Library.current === name) Library.current = '';
-  Library.refreshUI();
-  $('bookMsg').textContent = `「${name}」を削除しました。`;
+  if(!name || !Library.books[name]) return;
+  if(!confirm(`「${name}」を削除しますか？`)) return;
+  Library.del(name);
+  if(Library.current === name){ Library.current = ''; setLoaded([], ''); }
 });
 
-/* ===== エクスポート・インポート ===== */
-function download(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-function stamp() {
+/* ===== 書き出し・読み込み ===== */
+function stamp(){
   const d = new Date();
   return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
 }
-
+function download(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+function exportXlsx(){
+  if(!loaded.length){ alert('先に問題集を選ぶか、Excelを読み込んでください。'); return; }
+  const head = ['問題番号','日本語','英語','例文の日本語','例文の英語','出題数','正解数','不正解数','正答率'];
+  const rows = [head];
+  loaded.forEach(x => {
+    const r = x.tries ? Math.round(x.ok / x.tries * 100) + '%' : '';
+    rows.push([x.no, x.jp, x.en, x.exJp, x.exEn, x.tries||0, x.ok||0, x.ng||0, r]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '問題');
+  XLSX.writeFile(wb, `問題集_成績_${stamp()}.xlsx`);
+}
+$('expXlsxBtn').addEventListener('click', exportXlsx);
+$('saveBtn2').addEventListener('click', exportXlsx);
 $('expJsonBtn').addEventListener('click', () => {
-  Library.syncCurrent();
-  const data = { type: 'drill-backup', version: 1, savedAt: new Date().toISOString(),
-                 books: Library.books, stats: Stats.data };
-  download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
-           `ドリル全データ_${stamp()}.json`);
+  const data = {version:1, exportedAt:new Date().toISOString(), books:Library.books, stats:Stats.data};
+  download(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}), `ドリル_バックアップ_${stamp()}.json`);
 });
-
-$('impJsonInput').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    try {
-      const d = JSON.parse(ev.target.result);
-      if (!d || !d.books) throw new Error('この形式のファイルには対応していません');
-      let add = 0;
-      Object.keys(d.books).forEach(name => {
-        let key = name;
-        if (Library.books[key] && !confirm(`「${key}」は既にあります。上書きしますか？\n（キャンセルすると別名で追加します）`)) {
-          key = name + '（読込' + stamp() + '）';
-        }
-        Library.books[key] = d.books[name].map(r => makeItem(r));
-        add++;
-      });
-      Library.save();
-      if (d.stats) {
-        Object.keys(d.stats).forEach(k => {
-          const a = Stats.data[k] || { tries: 0, ok: 0, ng: 0 }, b = d.stats[k];
-          Stats.data[k] = {
-            tries: Math.max(a.tries || 0, b.tries || 0),
-            ok:    Math.max(a.ok    || 0, b.ok    || 0),
-            ng:    Math.max(a.ng    || 0, b.ng    || 0)
-          };
-        });
-        Stats.save();
-      }
-      Library.refreshUI();
-      $('bookMsg').textContent = `${add} 件の問題集を読み込みました。`;
-    } catch (err) {
-      alert('読み込みに失敗しました：' + err.message);
-    }
-    e.target.value = '';
+$('impJsonInput').addEventListener('change', ev => {
+  const f = ev.target.files[0]; if(!f) return;
+  const fr = new FileReader();
+  fr.onload = e => {
+    try{
+      const d = JSON.parse(e.target.result);
+      if(d.books) Object.keys(d.books).forEach(k => { Library.books[k] = d.books[k]; });
+      if(d.stats) Object.keys(d.stats).forEach(k => { Stats.data[k] = d.stats[k]; });
+      Library.save(); Stats.save(); Library.refresh();
+      alert('読み込みました。問題集を選んで始めてください。');
+    }catch(err){ alert('JSONの読み込みに失敗しました：' + err.message); }
   };
-  reader.readAsText(file);
+  fr.readAsText(f);
 });
 
-$('expXlsxBtn').addEventListener('click', () => {
-  if (!loaded.length) { alert('先に問題集を選ぶか、Excelを読み込んでください。'); return; }
-  const rows = [['問題番号','日本語','英語','例文の日本語','例文の英語','出題数','正解数','不正解数']];
-  loaded.forEach(x => rows.push([x.no, x.jp, x.en, x.exJp, x.exEn, x.tries, x.ok, x.ng]));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '単語');
-  XLSX.writeFile(wb, `${Library.current || '単語表'}_成績_${stamp()}.xlsx`);
-});
+/* ===== 開始 ===== */
+function buildList(){
+  if(!loaded.length){ alert('先に問題集を選んでください。'); return null; }
+  const from = parseInt($('optFrom').value,10), to = parseInt($('optTo').value,10);
+  let list = loaded.slice();
+  if(!isNaN(from)) list = list.filter(x => x.no >= from);
+  if(!isNaN(to))   list = list.filter(x => x.no <= to);
+  if(!list.length){ alert('その番号の範囲には問題がありません。'); return null; }
+  if($('optShuffle').checked){
+    for(let i = list.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = list[i]; list[i] = list[j]; list[j] = t;
+    }
+  }
+  const cnt = parseInt($('optCount').value,10);
+  if(!isNaN(cnt) && cnt > 0 && cnt < list.length) list = list.slice(0, cnt);
+  return list;
+}
+function startDrill(){ const l = buildList(); if(l) Drill.begin(l); }
 
-/* ===== 画面イベント ===== */
-$('startBtn').addEventListener('click', () => { Speaker.unlock(); Drill.begin(loaded); });
-$('replayBtn').addEventListener('click', () => Drill.replay());
-$('okBtn').addEventListener('click', () => Drill.forceCorrect());
-$('nextBtn').addEventListener('click', () => Drill.skip());
-$('micBtn').addEventListener('click', () => Voice.toggle());
-$('langBtn').addEventListener('click', () => Voice.toggleLang());
-$('passBtn').addEventListener('click', () => {
-  if (S.locked || !S.cur) return;
-  if (S.stage === 'word') Drill.wordWrong(true);
-  else if (S.stage === 'example') Drill.exampleEnd(false);
-  else Drill.repeatEnd(false);
-});
-$('quitBtn').addEventListener('click', () => {
-  clearTimeout(Drill.timer);
-  Voice.stop();
-  try { speechSynthesis.cancel(); } catch (e) {}
-  Library.syncCurrent();
+$('startBtn').addEventListener('click', () => { Speaker.unlock(); startDrill(); });
+$('againBtn').addEventListener('click', startDrill);
+$('backBtn').addEventListener('click', () => {
+  $('doneView').classList.add('hidden');
   $('drillView').classList.add('hidden');
   $('setupView').classList.remove('hidden');
 });
-$('textInput').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') Drill.onAnswer([e.target.value], '入力');
+$('quitBtn').addEventListener('click', () => Drill.finish());
+$('replayBtn').addEventListener('click', () => Drill.replay());
+$('okBtn').addEventListener('click', () => Drill.forceCorrect());
+$('nextBtn').addEventListener('click', () => Drill.jump());
+$('passBtn').addEventListener('click', () => { if(!S.lock) Drill.wrong(true); else Drill.jump(); });
+$('micBtn').addEventListener('click', () => { Speaker.unlock(); Voice.toggle(); });
+$('langBtn').addEventListener('click', () => Voice.setLang(Voice.lang === 'en-US' ? 'ja-JP' : 'en-US'));
+$('textInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    const v = $('textInput').value.trim();
+    if(!v) return;
+    $('textInput').value = '';
+    Drill.onAnswer([v], true);
+  }
 });
-$('againBtn').addEventListener('click', () => {
-  Speaker.unlock();
-  $('doneView').classList.add('hidden');
-  $('drillView').classList.remove('hidden');
-  if ($('optAutoMic').checked) Voice.start();
-  Drill.restart();
-});
-$('backBtn').addEventListener('click', () => {
-  $('doneView').classList.add('hidden');
-  $('setupView').classList.remove('hidden');
-});
+$('toggleListBtn').addEventListener('click', () => Review.toggle());
+$('onlyWrong').addEventListener('change', () => Review.build());
 
-Library.refreshUI();
-if (!Voice.setup()) {
-  $('setupMsg').textContent = 'このブラウザは音声入力に対応していません（Chrome推奨）。テキスト入力でも使えます。';
-}
+setLoaded([], '');
 });
 </script>
 </body>

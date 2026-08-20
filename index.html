@@ -37,6 +37,7 @@
     <div class="bg-white rounded-lg shadow p-5 space-y-3">
       <h2 class="font-bold text-lg">📥 Excelから取り込む</h2>
       <p class="text-xs text-gray-500">A:問題番号 / B:日本語 / C:英語 / D:例文の日本語 / E:例文の英語 / F:出題数 / G:正解数 / H:不正解数（1行目は見出し。番号列がなくても自動で振ります）</p>
+      <p class="text-xs text-gray-500">※「日本語で答える」モードでは B:問題文 / C:答え / D:補足の問題 / E:補足の答え と読み替えて使えます。</p>
       <input type="file" id="fileInput" accept=".xlsx,.xls" class="w-full border rounded p-2 text-sm">
       <div class="flex gap-2 flex-wrap">
         <input type="text" id="bookName" class="border rounded p-2 text-sm flex-grow min-w-[10rem]" placeholder="問題集の名前（例：英検2級 単語）">
@@ -74,6 +75,13 @@
           <label class="block text-sm font-medium mb-1">今回の出題数</label>
           <input type="number" id="optCount" min="1" step="1" class="border rounded p-2 w-28 text-sm" placeholder="全部">
           <p class="text-xs text-gray-500 mt-1" id="countHint">空欄なら全問</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">回答の言語</label>
+          <select id="optAnsLang" class="border rounded p-2 text-sm">
+            <option value="en-US">英語で答える</option>
+            <option value="ja-JP">日本語で答える</option>
+          </select>
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">判定のゆるさ</label>
@@ -166,6 +174,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const $ = id => document.getElementById(id);
 
+/* ===== 回答言語モード ===== */
+const AnsLang = {
+  KEY: 'drill_ans_lang',
+  get() { return localStorage.getItem(this.KEY) || 'en-US'; },
+  isJa() { return this.get().indexOf('ja') === 0; },
+  other() { return this.isJa() ? 'en-US' : 'ja-JP'; },
+  init() {
+    const el = $('optAnsLang');
+    if (!el) return;
+    el.value = this.get();
+    el.addEventListener('change', () => {
+      localStorage.setItem(this.KEY, el.value);
+      try { Voice.setLang(el.value); } catch (e) {}
+    });
+  }
+};
+
 /* ===== 文字比較 ===== */
 const Match = {
   norm(str) {
@@ -179,6 +204,16 @@ const Match = {
     s = s.replace(/(です|ですね|だと思います)+$/g, '');
     s = s.replace(/[\s\u3000ー－―‐・、。，．,.\-_!！?？"'「」『』（）()\[\]【】:：;；…～〜~＊*]/g, '');
     return s;
+  },
+  normJa(s) {
+    let t = String(s || '');
+    try { t = t.normalize('NFKC'); } catch (e) {}
+    return t
+      .replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
+      .replace(/^(えーと|えっと|ええと|あのー|たぶん|多分|こたえは|答えは)+/g, '')
+      .replace(/(です|ですね|だと思います|だとおもいます)+$/g, '')
+      .replace(/[\s\u3000ー－―‐・、。，．,.\-_!！?？"'”’「」『』（）()\[\]【】:：;；…～〜~＊*]/g, '')
+      .toLowerCase();
   },
   lev(a, b) {
     if (a === b) return 0;
@@ -240,7 +275,25 @@ const Match = {
       return this.lev(a, b) / Math.max(a.length, b.length) <= tol;
     });
   },
+  looseJa(input, answerText, tol) {
+    const a = this.normJa(input);
+    if (!a) return false;
+    const cands = String(answerText || '').split(/[、,／/｜|;；]/);
+    for (const c of cands) {
+      const raw = String(c || '');
+      const list = [raw, raw.replace(/[（(\[【][^）)\]】]*[）)\]】]/g, '')];
+      for (const one of list) {
+        const b = this.normJa(one);
+        if (!b) continue;
+        if (a === b) return true;
+        if (a.length >= 2 && b.length >= 2 && (a.includes(b) || b.includes(a))) return true;
+        if (b.length >= 3 && this.lev(a, b) <= Math.max(1, Math.round(b.length * tol))) return true;
+      }
+    }
+    return false;
+  },
   loose(input, answerText, tol) {
+    if (AnsLang.isJa()) return this.looseJa(input, answerText, tol);
     if (this.base(input, answerText, tol)) return true;
     if (String(answerText || '').split(/[、,／/｜|;；]/).some(part => this.segments(input, part))) return true;
     const answers = this.variants(answerText);
@@ -417,7 +470,7 @@ const Speaker = {
 
 /* ===== 音声認識 ===== */
 const Voice = {
-  rec: null, micActive: false, timer: null, lang: 'en-US',
+  rec: null, micActive: false, timer: null, lang: AnsLang.get(),
   stamps: [], blocked: false,
   setup() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -483,12 +536,14 @@ const Voice = {
   toggle() { this.micActive ? this.stop() : this.start(); },
   setLang(lang) {
     this.lang = lang;
-    if (!this.rec) return;
+    if (!this.rec) { this.updateUI(); return; }
     this.rec.lang = lang;
     if (this.micActive) { try { this.rec.stop(); } catch (e) {} }
     this.updateUI();
   },
-  toggleLang() { this.setLang(this.lang === 'en-US' ? 'ja-JP' : 'en-US'); },
+  toggleLang() {
+    this.setLang(this.lang === AnsLang.get() ? AnsLang.other() : AnsLang.get());
+  },
   updateUI() {
     const m = $('micBtn'), l = $('langBtn');
     if (m) {
@@ -571,7 +626,11 @@ const ResultList = {
       el.textContent = this.showJp ? el.dataset.jp : el.dataset.en;
       el.className = 'flex-grow break-words ' + (this.showJp ? 'text-gray-800' : 'text-blue-700 font-bold');
     });
-    $('toggleListBtn').textContent = this.showJp ? '🇬🇧 英語を表示' : '🇯🇵 日本語訳を表示';
+    if (AnsLang.isJa()) {
+      $('toggleListBtn').textContent = this.showJp ? '答えを表示' : '問題を表示';
+    } else {
+      $('toggleListBtn').textContent = this.showJp ? '🇬🇧 英語を表示' : '🇯🇵 日本語訳を表示';
+    }
   },
   toggle() { this.showJp = !this.showJp; this.apply(); }
 };
@@ -586,6 +645,7 @@ const Drill = {
     $('setupView').classList.add('hidden');
     $('doneView').classList.add('hidden');
     $('drillView').classList.remove('hidden');
+    Voice.setLang(AnsLang.get());
     Voice.updateUI();
     if ($('optAutoMic').checked) Voice.start();
     this.restart();
@@ -627,7 +687,8 @@ const Drill = {
     $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-transparent';
     if (S.queue.length === 0) return this.finish();
     S.cur = S.queue[0];
-    $('prompt').textContent = `No.${S.cur.no}　この日本語を英語で答えてください` + (S.cur.remind ? '（🔁 リマインド中）' : '');
+    const ask = AnsLang.isJa() ? 'この問題に答えてください' : 'この日本語を英語で答えてください';
+    $('prompt').textContent = `No.${S.cur.no}　${ask}` + (S.cur.remind ? '（🔁 リマインド中）' : '');
     $('question').textContent = S.cur.jp;
     this.hud();
     Speaker.speak(S.cur.jp, 'ja-JP');
@@ -636,7 +697,7 @@ const Drill = {
     if (!S.cur) return;
     if (S.stage === 'word') Speaker.speak(S.cur.jp, 'ja-JP');
     else if (S.stage === 'example') Speaker.speak(S.cur.exJp, 'ja-JP');
-    else Speaker.speak([{ text: S.cur.exEn, lang: 'en-US' }]);
+    else Speaker.speak([{ text: S.cur.exEn, lang: AnsLang.get() }]);
   },
   onAnswer(alts, label) {
     if (S.locked || !S.cur) return;
@@ -694,7 +755,7 @@ const Drill = {
     $('reveal').classList.remove('hidden');
     this.hud();
     const useEx = $('optExample').checked && S.cur.exJp && S.cur.exEn;
-    Speaker.speak([{ text: S.cur.en.replace(/[～〜~]/g, ' '), lang: 'en-US' }], null, () => {
+    Speaker.speak([{ text: S.cur.en.replace(/[～〜~]/g, ' '), lang: AnsLang.get() }], null, () => {
       if (useEx) this.askExample();
       else this.wait(S.showMs, () => { this.requeue(); this.next(); });
     });
@@ -705,7 +766,9 @@ const Drill = {
     $('heard').textContent = '';
     $('textInput').value = '';
     $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-amber-400';
-    $('prompt').textContent = '📝 この例文を英語で言ってください';
+    $('prompt').textContent = AnsLang.isJa()
+      ? '📝 この問題にも答えてみましょう'
+      : '📝 この例文を英語で言ってください';
     $('question').textContent = S.cur.exJp;
     if ($('optAutoMic').checked) Voice.start();
     Speaker.speak(S.cur.exJp, 'ja-JP');
@@ -718,7 +781,7 @@ const Drill = {
     $('ansExEn').textContent = S.cur.exEn;
     $('reveal').classList.remove('hidden');
     const train = !ok && $('optRepeat').checked;
-    Speaker.speak([{ text: S.cur.exEn, lang: 'en-US' }], null, () => {
+    Speaker.speak([{ text: S.cur.exEn, lang: AnsLang.get() }], null, () => {
       if (train) this.askRepeat();
       else this.wait(S.showMs, () => { this.requeue(); this.next(); });
     });
@@ -729,10 +792,12 @@ const Drill = {
     $('heard').textContent = '';
     $('textInput').value = '';
     $('stageBox').className = 'bg-white rounded-lg shadow p-8 text-center border-4 border-purple-400';
-    $('prompt').textContent = '🗣️ お手本のあとに、同じ英文を声に出してみましょう';
+    $('prompt').textContent = AnsLang.isJa()
+      ? '🗣️ お手本のあとに、同じ文を声に出してみましょう'
+      : '🗣️ お手本のあとに、同じ英文を声に出してみましょう';
     $('question').textContent = S.cur.exEn;
     if ($('optAutoMic').checked) Voice.start();
-    Speaker.speak([{ text: S.cur.exEn, lang: 'en-US' }]);
+    Speaker.speak([{ text: S.cur.exEn, lang: AnsLang.get() }]);
   },
   repeatEnd(ok) {
     S.locked = true;
@@ -1019,6 +1084,7 @@ $('backBtn').addEventListener('click', () => {
   $('setupView').classList.remove('hidden');
 });
 
+AnsLang.init();
 Library.refreshUI();
 if (!Voice.setup()) {
   $('setupMsg').textContent = 'このブラウザは音声入力に対応していません（Chrome推奨）。テキスト入力でも使えます。';

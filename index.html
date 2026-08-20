@@ -151,6 +151,7 @@
         <h3 class="font-bold">📋 出題した問題</h3>
         <button id="toggleListBtn" class="ml-auto px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇯🇵 日本語訳を表示</button>
       </div>
+      <p class="text-xs text-gray-500 mb-1">語句をタップすると例文が開きます。</p>
       <ul id="doneList" class="border rounded divide-y max-h-72 overflow-y-auto"></ul>
     </div>
 
@@ -357,7 +358,8 @@ Stats.load();
 /* ===== 状態 ===== */
 const S = {
   all: [], queue: [], session: [], cur: null, stage: 'word', tries: 0,
-  correct: 0, wrong: 0, total: 0, locked: false, tol: 0.25, showMs: 6000
+  correct: 0, wrong: 0, total: 0, locked: false, penalized: false,
+  tol: 0.25, showMs: 6000
 };
 
 /* ===== 読み上げ ===== */
@@ -511,15 +513,55 @@ const ResultList = {
     ul.innerHTML = '';
     (S.session || []).forEach(x => {
       const li = document.createElement('li');
-      li.className = 'p-2 flex gap-2 items-baseline';
+      li.className = 'p-2';
+
+      const row = document.createElement('div');
+      row.className = 'flex gap-2 items-baseline cursor-pointer';
+
       const no = document.createElement('span');
       no.className = 'text-xs text-gray-500 shrink-0 w-12';
       no.textContent = 'No.' + x.no;
+
       const txt = document.createElement('span');
       txt.dataset.en = x.en;
       txt.dataset.jp = x.jp;
-      li.appendChild(no);
-      li.appendChild(txt);
+
+      const mark = document.createElement('span');
+      mark.className = 'text-xs text-gray-400 shrink-0';
+      mark.textContent = (x.exJp || x.exEn) ? '▼' : '';
+
+      row.appendChild(no);
+      row.appendChild(txt);
+      row.appendChild(mark);
+
+      const ex = document.createElement('div');
+      ex.className = 'hidden mt-2 ml-12 bg-amber-50 border border-amber-300 rounded p-2 space-y-1';
+      if (x.exEn) {
+        const p = document.createElement('p');
+        p.className = 'text-sm text-blue-700 font-bold break-words';
+        p.textContent = x.exEn;
+        ex.appendChild(p);
+      }
+      if (x.exJp) {
+        const p = document.createElement('p');
+        p.className = 'text-xs text-gray-700 break-words';
+        p.textContent = x.exJp;
+        ex.appendChild(p);
+      }
+      if (!x.exEn && !x.exJp) {
+        const p = document.createElement('p');
+        p.className = 'text-xs text-gray-500';
+        p.textContent = '例文は登録されていません。';
+        ex.appendChild(p);
+      }
+
+      row.addEventListener('click', () => {
+        const open = ex.classList.toggle('hidden');
+        if (mark.textContent) mark.textContent = open ? '▼' : '▲';
+      });
+
+      li.appendChild(row);
+      li.appendChild(ex);
       ul.appendChild(li);
     });
     this.apply();
@@ -577,7 +619,7 @@ const Drill = {
   wait(ms, fn) { clearTimeout(this.timer); this.timer = setTimeout(fn, ms); },
   next() {
     clearTimeout(this.timer);
-    S.locked = false; S.stage = 'word'; S.tries = 0;
+    S.locked = false; S.stage = 'word'; S.tries = 0; S.penalized = false;
     $('reveal').classList.add('hidden');
     $('judge').textContent = '';
     $('heard').textContent = '';
@@ -642,6 +684,7 @@ const Drill = {
   wordWrong(passed) {
     S.locked = true;
     S.wrong++;
+    S.penalized = true;
     Stats.record(S.cur, false);
     $('judge').textContent = passed ? '⏭️' : '❌';
     $('judge').className = 'mt-4 text-6xl h-16 shake';
@@ -711,25 +754,31 @@ const Drill = {
       S.queue.splice(Math.min(2, others), 0, item);
     }
   },
+  undoPenalty() {
+    if (!S.penalized || !S.cur) return;
+    S.penalized = false;
+    const it = S.cur;
+    S.wrong--;
+    it.tries = Math.max(0, it.tries - 1);
+    it.ng    = Math.max(0, it.ng - 1);
+    Stats.data[Stats.key(it)] = { tries: it.tries, ok: it.ok, ng: it.ng };
+    Stats.save();
+    this.hud();
+  },
   forceCorrect() {
     if (!S.cur) return;
     clearTimeout(this.timer);
     try { speechSynthesis.cancel(); } catch (e) {}
     Speaker.speaking = false;
     Speaker.session++;
-    if (S.stage === 'word') {
-      if (S.locked) {
-        const it = S.cur;
-        S.wrong--;
-        it.tries = Math.max(0, it.tries - 1);
-        it.ng    = Math.max(0, it.ng - 1);
-        Stats.data[Stats.key(it)] = { tries: it.tries, ok: it.ok, ng: it.ng };
-        Stats.save();
-        S.locked = false;
-      }
+    if (S.stage === 'word' || S.stage === 'example') {
+      this.undoPenalty();
+      S.cur.remind = false;
+      S.stage = 'word';
+      S.locked = false;
+      $('reveal').classList.add('hidden');
       return this.wordCorrect();
     }
-    if (S.stage === 'example') return this.exampleEnd(true);
     return this.repeatEnd(true);
   },
   skip() {

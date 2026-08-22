@@ -36,11 +36,12 @@
     <!-- 取り込み -->
     <div class="bg-white rounded-lg shadow p-5 space-y-3">
       <h2 class="font-bold text-lg">📥 Excelから取り込む</h2>
-      <p class="text-xs text-gray-500">A:問題番号 / B:日本語 / C:英語 / D:例文の日本語 / E:例文の英語 / F:出題数 / G:正解数 / H:不正解数（1行目は見出し。番号列がなくても自動で振ります）</p>
-      <p class="text-xs text-gray-500">※「日本語で答える」モードでは B:問題文 / C:答え / D:補足の問題 / E:補足の答え と読み替えて使えます。</p>
+      <p class="text-xs text-gray-500">A:番号 / B:質問 / C:答え / D:同音異義語答え / E:参考（例文）英語 / F:備考（例文の日本語）/ G:出題数 / H:正解数 / I:不正解数（1行目は見出し。番号列がなくても自動で振ります）</p>
+      <p class="text-xs text-gray-500">※D列には「死亡／シボウ」のように、音は同じでも表記が違う答えを「、」や「／」で区切って並べます。演習中に「⭕ 正解にする」を押すと自動で追記されます。</p>
+      <p class="text-xs text-gray-500">※見出しに「同音」の文字がない古い表（D:例文の日本語 / E:例文の英語）も、そのまま読み込めます。</p>
       <input type="file" id="fileInput" accept=".xlsx,.xls" class="w-full border rounded p-2 text-sm">
       <div class="flex gap-2 flex-wrap">
-        <input type="text" id="bookName" class="border rounded p-2 text-sm flex-grow min-w-[10rem]" placeholder="問題集の名前（例：英検2級 単語）">
+        <input type="text" id="bookName" class="border rounded p-2 text-sm flex-grow min-w-[10rem]" placeholder="問題集の名前（例：生物 用語）">
         <button id="saveBookBtn" class="px-4 py-2 bg-emerald-600 text-white rounded text-sm font-bold disabled:bg-gray-400" disabled>アプリに保存</button>
       </div>
     </div>
@@ -55,7 +56,7 @@
         </label>
         <button id="expXlsxBtn" class="px-4 py-2 bg-gray-600 text-white rounded text-sm">選択中をExcelで書き出す</button>
       </div>
-      <p class="text-xs text-gray-500">JSONには全問題集と成績が入ります。別の端末で読み込めば同じ状態を再現できます。</p>
+      <p class="text-xs text-gray-500">JSONには全問題集・成績・登録した同音異義語が入ります。別の端末で読み込めば同じ状態を再現できます。</p>
     </div>
 
     <!-- 出題設定 -->
@@ -104,8 +105,9 @@
         <label class="flex items-center gap-2"><input type="checkbox" id="optShuffle" checked>順番をシャッフルする</label>
         <label class="flex items-center gap-2"><input type="checkbox" id="optAutoMic" checked>マイクを自動でONにする</label>
         <label class="flex items-center gap-2"><input type="checkbox" id="optSpeak" checked>読み上げを使う</label>
-        <label class="flex items-center gap-2"><input type="checkbox" id="optExample" checked>不正解のとき例文も練習する</label>
-        <label class="flex items-center gap-2"><input type="checkbox" id="optRepeat" checked>例文を間違えたら発音練習をする</label>
+        <label class="flex items-center gap-2"><input type="checkbox" id="optExample" checked>不正解のとき参考も練習する</label>
+        <label class="flex items-center gap-2"><input type="checkbox" id="optRepeat" checked>参考を間違えたら発音練習をする</label>
+        <label class="flex items-center gap-2"><input type="checkbox" id="optLearnAlt" checked>「正解にする」で同音異義語を登録する</label>
       </div>
       <button id="startBtn" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold disabled:bg-gray-400" disabled>ドリルを開始</button>
       <div id="setupMsg" class="text-sm text-center text-gray-600"></div>
@@ -134,6 +136,7 @@
       <div id="judge" class="mt-4 text-6xl h-16"></div>
       <div id="reveal" class="hidden mt-2 text-left bg-amber-50 border-2 border-amber-300 rounded-lg p-4 space-y-1">
         <p class="text-lg"><span class="font-bold">正解：</span><span id="ansEn" class="text-blue-700 font-bold"></span></p>
+        <p id="ansNote" class="text-sm text-emerald-700 font-bold"></p>
         <p id="ansExJp" class="text-sm text-gray-700"></p>
         <p id="ansExEn" class="text-base text-blue-700 font-bold"></p>
       </div>
@@ -144,7 +147,7 @@
         <input type="text" id="textInput" class="flex-grow border rounded p-2" placeholder="キーボードで答える場合はここに入力（Enter）">
         <button id="passBtn" class="px-4 py-2 bg-yellow-500 text-white rounded font-bold">パス</button>
       </div>
-      <p class="text-xs text-gray-500 mt-2">声で「パス」「スキップ」なら不正解あつかい。「remind（リマインド）」と言うと、正解するまで2問先に出続けます。うまく認識されないときは「⭕ 正解にする」を押してください。</p>
+      <p class="text-xs text-gray-500 mt-2">声で「パス」「スキップ」なら不正解あつかい。「remind（リマインド）」と言うと、正解するまで2問先に出続けます。同音異義語で誤判定されたら「⭕ 正解にする」を押すと、その言葉が同音異義語として登録され、次回から正解になります（表示される正解は表の答えのままです）。</p>
     </div>
   </div>
 
@@ -159,7 +162,7 @@
         <h3 class="font-bold">📋 出題した問題</h3>
         <button id="toggleListBtn" class="ml-auto px-3 py-2 bg-indigo-600 text-white rounded text-sm">🇯🇵 日本語訳を表示</button>
       </div>
-      <p class="text-xs text-gray-500 mb-1">語句をタップすると例文が開きます。</p>
+      <p class="text-xs text-gray-500 mb-1">語句をタップすると参考・備考が開きます。</p>
       <ul id="doneList" class="border rounded divide-y max-h-72 overflow-y-auto"></ul>
     </div>
 
@@ -215,6 +218,8 @@ const Match = {
       .replace(/[\s\u3000ー－―‐・、。，．,.\-_!！?？"'”’「」『』（）()\[\]【】:：;；…～〜~＊*]/g, '')
       .toLowerCase();
   },
+  /* 回答言語に応じた正規化 */
+  key(s) { return AnsLang.isJa() ? this.normJa(s) : this.norm(s); },
   lev(a, b) {
     if (a === b) return 0;
     if (!a.length) return b.length;
@@ -309,6 +314,17 @@ const Match = {
       if (head.length >= 3 && said.indexOf(head) === 0) return true;
     }
     return false;
+  },
+  /* 同音異義語は登録された言葉なので、取り違えを防ぐため厳しめに照合する */
+  altHit(input, altText) {
+    const a = this.key(input);
+    if (!a) return false;
+    return String(altText || '').split(/[、,，／/｜|;；]/).some(part => {
+      const b = this.key(part);
+      if (!b) return false;
+      if (a === b) return true;
+      return b.length >= 4 && this.lev(a, b) <= 1;
+    });
   }
 };
 
@@ -347,22 +363,22 @@ const Library = {
   },
   save() {
     try { localStorage.setItem(this.KEY, JSON.stringify(this.books)); return true; }
-    catch (e) { alert('保存できませんで했ました（容量オーバーの可能性）：' + e.message); return false; }
+    catch (e) { alert('保存できませんでした（容量オーバーの可能性）：' + e.message); return false; }
   },
   names() { return Object.keys(this.books).sort(); },
   put(name, items) {
     this.books[name] = items.map(x => ({
-      no: x.no || 0, jp: x.jp, en: x.en, exJp: x.exJp, exEn: x.exEn,
+      no: x.no || 0, jp: x.jp, en: x.en,
+      alts: (x.alts || []).slice(),
+      exEn: x.exEn, exJp: x.exJp,
       tries: x.tries || 0, ok: x.ok || 0, ng: x.ng || 0
     }));
     return this.save();
   },
   remove(name) { delete this.books[name]; this.save(); },
-  /* 中身が空のときは書き戻さない（古いデータで上書きするのを防ぐ） */
   syncCurrent() {
     if (this.current && this.books[this.current] && loaded.length) this.put(this.current, loaded);
   },
-  /* 表示中の選択肢と、実際に使っている問題集を必ず一致させる */
   refreshUI() {
     const sel = $('bookSelect');
     const names = this.names();
@@ -410,11 +426,46 @@ const Stats = {
 };
 Stats.load();
 
+/* ===== 同音異義語の保管（問題集を入れ替えても残る） ===== */
+const Alts = {
+  KEY: 'drill-alts-v1',
+  data: {},
+  load() {
+    try { this.data = JSON.parse(localStorage.getItem(this.KEY) || '{}'); }
+    catch (e) { this.data = {}; }
+  },
+  save() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  key(item) { return item.jp + '\u0001' + item.en; },
+  attach(item) {
+    const d = this.data[this.key(item)];
+    if (!d || !d.length) return;
+    item.alts = item.alts || [];
+    d.forEach(t => { if (item.alts.indexOf(t) < 0) item.alts.push(t); });
+  },
+  add(item, text) {
+    const k = this.key(item);
+    const list = this.data[k] || [];
+    if (list.indexOf(text) < 0) list.push(text);
+    this.data[k] = list;
+    this.save();
+  },
+  merge(obj) {
+    if (!obj) return;
+    Object.keys(obj).forEach(k => {
+      const cur = this.data[k] || [];
+      (obj[k] || []).forEach(t => { if (cur.indexOf(t) < 0) cur.push(t); });
+      this.data[k] = cur;
+    });
+    this.save();
+  }
+};
+Alts.load();
+
 /* ===== 状態 ===== */
 const S = {
   all: [], queue: [], session: [], cur: null, stage: 'word', tries: 0,
   correct: 0, wrong: 0, total: 0, locked: false, penalized: false,
-  tol: 0.25, showMs: 6000
+  tol: 0.25, showMs: 6000, wordHeard: ''
 };
 
 /* ===== 読み上げ ===== */
@@ -585,7 +636,7 @@ const ResultList = {
 
       const mark = document.createElement('span');
       mark.className = 'text-xs text-gray-400 shrink-0';
-      mark.textContent = (x.exJp || x.exEn) ? '▼' : '';
+      mark.textContent = (x.exJp || x.exEn || (x.alts && x.alts.length)) ? '▼' : '';
 
       row.appendChild(no);
       row.appendChild(txt);
@@ -605,10 +656,16 @@ const ResultList = {
         p.textContent = x.exJp;
         ex.appendChild(p);
       }
-      if (!x.exEn && !x.exJp) {
+      if (x.alts && x.alts.length) {
+        const p = document.createElement('p');
+        p.className = 'text-xs text-emerald-700 break-words';
+        p.textContent = '同音異義語として正解あつかい：' + x.alts.join('、');
+        ex.appendChild(p);
+      }
+      if (!x.exEn && !x.exJp && !(x.alts && x.alts.length)) {
         const p = document.createElement('p');
         p.className = 'text-xs text-gray-500';
-        p.textContent = '例文は登録されていません。';
+        p.textContent = '参考・備考は登録されていません。';
         ex.appendChild(p);
       }
 
@@ -679,10 +736,18 @@ const Drill = {
     $('score').textContent = `正解 ${S.correct} ・ 不正解 ${S.wrong}`;
   },
   wait(ms, fn) { clearTimeout(this.timer); this.timer = setTimeout(fn, ms); },
+  clearReveal() {
+    $('reveal').classList.add('hidden');
+    $('ansEn').textContent = '';
+    $('ansNote').textContent = '';
+    $('ansExJp').textContent = '';
+    $('ansExEn').textContent = '';
+  },
   next() {
     clearTimeout(this.timer);
     S.locked = false; S.stage = 'word'; S.tries = 0; S.penalized = false;
-    $('reveal').classList.add('hidden');
+    S.wordHeard = '';
+    this.clearReveal();
     $('judge').textContent = '';
     $('heard').textContent = '';
     $('textInput').value = '';
@@ -701,6 +766,11 @@ const Drill = {
     else if (S.stage === 'example') Speaker.speak(S.cur.exJp, 'ja-JP');
     else Speaker.speak([{ text: S.cur.exEn, lang: AnsLang.get() }]);
   },
+  /* 表の答え、または登録済みの同音異義語に一致するか */
+  isRight(text, item) {
+    if (Match.loose(text, item.en, S.tol)) return true;
+    return (item.alts || []).some(a => Match.altHit(text, a));
+  },
   onAnswer(alts, label) {
     if (S.locked || !S.cur) return;
     if (!Array.isArray(alts)) alts = [alts];
@@ -709,7 +779,8 @@ const Drill = {
     $('heard').textContent = (label || '入力') + '：' + alts[0];
 
     if (S.stage === 'word') {
-      if (alts.some(t => Match.loose(t, S.cur.en, S.tol))) return this.wordCorrect();
+      S.wordHeard = alts[0];
+      if (alts.some(t => this.isRight(t, S.cur))) return this.wordCorrect();
       if (alts.some(isRemind)) { S.cur.remind = true; return this.wordWrong(true); }
       return this.wordWrong(alts.some(isPass));
     }
@@ -729,10 +800,29 @@ const Drill = {
     $('judge').className = 'mt-4 text-6xl h-16 shake';
     if (S.tries >= 3) return this.repeatEnd(false);
   },
-  wordCorrect() {
+  /* 聞き取られた言葉を同音異義語として登録する。登録できたらその文字列を返す */
+  learnAlt(text) {
+    const it = S.cur;
+    const t = String(text || '').trim();
+    if (!it || !t) return '';
+    if (!$('optLearnAlt').checked) return '';
+    if (t.length > 40) return '';
+    if (isPass(t) || isRemind(t)) return '';
+    if (Match.loose(t, it.en, S.tol)) return '';
+    const k = Match.key(t);
+    if (!k) return '';
+    it.alts = it.alts || [];
+    if (it.alts.some(a => Match.key(a) === k)) return '';
+    it.alts.push(t);
+    Alts.add(it, t);
+    Library.syncCurrent();
+    return t;
+  },
+  wordCorrect(added) {
     S.locked = true;
     S.correct++;
     Stats.record(S.cur, true);
+    const cur = S.cur;
     const item = S.queue.shift();
     if (item.remind) {
       item.remind = false;
@@ -741,8 +831,16 @@ const Drill = {
     const left = S.queue.filter(x => x === item).length;
     $('judge').textContent = left > 0 ? '⭕' : '💯';
     $('judge').className = 'mt-4 text-6xl h-16 pop';
+    /* 正解のときも、表に書かれた答えを必ず表示する */
+    $('ansEn').textContent = cur.en;
+    $('ansNote').textContent = added
+      ? `🆕「${added}」を同音異義語の答えとして登録しました。次回からは正解あつかいになります（覚える答えは「${cur.en}」です）。`
+      : '';
+    $('ansExJp').textContent = '';
+    $('ansExEn').textContent = '';
+    $('reveal').classList.remove('hidden');
     this.hud();
-    this.wait(900, () => this.next());
+    this.wait(added ? 3000 : 1400, () => this.next());
   },
   wordWrong(passed) {
     S.locked = true;
@@ -752,6 +850,7 @@ const Drill = {
     $('judge').textContent = passed ? '⏭️' : '❌';
     $('judge').className = 'mt-4 text-6xl h-16 shake';
     $('ansEn').textContent = S.cur.en + (S.cur.remind ? '　🔁 リマインド登録' : '');
+    $('ansNote').textContent = '';
     $('ansExJp').textContent = '';
     $('ansExEn').textContent = '';
     $('reveal').classList.remove('hidden');
@@ -779,7 +878,7 @@ const Drill = {
     S.locked = true;
     $('judge').textContent = ok ? '⭕' : '❌';
     $('judge').className = 'mt-4 text-6xl h-16 ' + (ok ? 'pop' : 'shake');
-    $('ansExJp').textContent = '例文：' + S.cur.exJp;
+    $('ansExJp').textContent = '備考：' + S.cur.exJp;
     $('ansExEn').textContent = S.cur.exEn;
     $('reveal').classList.remove('hidden');
     const train = !ok && $('optRepeat').checked;
@@ -839,12 +938,13 @@ const Drill = {
     Speaker.speaking = false;
     Speaker.session++;
     if (S.stage === 'word' || S.stage === 'example') {
+      const added = this.learnAlt(S.wordHeard);
       this.undoPenalty();
       S.cur.remind = false;
       S.stage = 'word';
       S.locked = false;
-      $('reveal').classList.add('hidden');
-      return this.wordCorrect();
+      this.clearReveal();
+      return this.wordCorrect(added);
     }
     return this.repeatEnd(true);
   },
@@ -872,18 +972,44 @@ const Drill = {
 
 /* ===== 問題集の読み込みと管理 ===== */
 let loaded = [];
-function makeItem(r, off) {
+
+/* 列の並び。-1 はその列が無いという意味 */
+const LAYOUT_NEW = { no:0, jp:1, en:2, alt:3, exEn:4, exJp:5, tries:6, ok:7, ng:8 };
+const LAYOUT_OLD = { no:0, jp:1, en:2, alt:-1, exJp:3, exEn:4, tries:5, ok:6, ng:7 };
+
+function shiftLayout(L, d) {
+  const o = {};
+  Object.keys(L).forEach(k => { o[k] = (L[k] < 0) ? -1 : L[k] + d; });
+  return o;
+}
+function detectLayout(header) {
+  const txt = (header || []).map(v => String(v || ''));
+  if (txt.some(t => t.indexOf('同音') >= 0)) return LAYOUT_NEW;
+  const iJp = txt.findIndex(t => t.indexOf('例文の日本語') >= 0);
+  const iEn = txt.findIndex(t => t.indexOf('例文の英語') >= 0);
+  if (iJp >= 0 && iEn >= 0 && iJp < iEn) return LAYOUT_OLD;
+  return LAYOUT_NEW;
+}
+function splitAlts(v) {
+  if (Array.isArray(v)) return v.map(s => String(s || '').trim()).filter(Boolean);
+  return String(v === undefined || v === null ? '' : v)
+    .split(/[、,，／/｜|;；]/).map(s => s.trim()).filter(Boolean);
+}
+function cell(r, i) { return (i >= 0 && r[i] !== undefined && r[i] !== null) ? r[i] : ''; }
+
+function makeItem(r, cols) {
   if (Array.isArray(r)) {
-    const o = off || 0;
+    const c = cols || LAYOUT_NEW;
     return {
-      no:   o ? (Number(r[0]) || 0) : 0,
-      jp:   String(r[o]   || '').trim(),
-      en:   String(r[o+1] || '').trim(),
-      exJp: String(r[o+2] || '').trim(),
-      exEn: String(r[o+3] || '').trim(),
-      tries: Number(r[o+4]) || 0,
-      ok:    Number(r[o+5]) || 0,
-      ng:    Number(r[o+6]) || 0,
+      no:   Number(cell(r, c.no)) || 0,
+      jp:   String(cell(r, c.jp)).trim(),
+      en:   String(cell(r, c.en)).trim(),
+      alts: splitAlts(cell(r, c.alt)),
+      exEn: String(cell(r, c.exEn)).trim(),
+      exJp: String(cell(r, c.exJp)).trim(),
+      tries: Number(cell(r, c.tries)) || 0,
+      ok:    Number(cell(r, c.ok))    || 0,
+      ng:    Number(cell(r, c.ng))    || 0,
       remind: false
     };
   }
@@ -891,8 +1017,9 @@ function makeItem(r, off) {
     no:   Number(r.no) || 0,
     jp:   String(r.jp   || '').trim(),
     en:   String(r.en   || '').trim(),
-    exJp: String(r.exJp || '').trim(),
+    alts: splitAlts(r.alts !== undefined ? r.alts : r.alt),
     exEn: String(r.exEn || '').trim(),
+    exJp: String(r.exJp || '').trim(),
     tries: Number(r.tries) || 0,
     ok:    Number(r.ok)    || 0,
     ng:    Number(r.ng)    || 0,
@@ -900,7 +1027,6 @@ function makeItem(r, off) {
   };
 }
 
-/* 読み込み済みデータを完全に捨てる */
 function clearLoaded() {
   loaded = [];
   S.all = []; S.queue = []; S.session = []; S.cur = null;
@@ -910,7 +1036,6 @@ function clearLoaded() {
   $('countHint').textContent = '空欄なら全問';
 }
 
-/* 一覧で選ばれている問題集を、実際に使うデータへ反映する */
 function applyBook(name, silent) {
   if (!name || !Library.books[name]) {
     if (!silent) alert('問題集を選んでください。');
@@ -930,7 +1055,7 @@ function setLoaded(items, label) {
   $('optTo').value = '';
   loaded = items.filter(x => x.jp && x.en);
   loaded.forEach((x, i) => { if (!x.no) x.no = i + 1; });
-  loaded.forEach(x => Stats.attach(x));
+  loaded.forEach(x => { Stats.attach(x); Alts.attach(x); });
   const nos = loaded.map(x => x.no);
   const lo = nos.length ? Math.min.apply(null, nos) : 0;
   const hi = nos.length ? Math.max.apply(null, nos) : 0;
@@ -951,14 +1076,17 @@ $('fileInput').addEventListener('change', (e) => {
       const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const header = rows[0] || [];
       const body = rows.slice(1).filter(r => r && r.length);
       const numish = body.filter(r => String(r[0] || '').trim() !== '' && !isNaN(Number(r[0]))).length;
       const off = (body.length && numish >= body.length * 0.8) ? 1 : 0;
+      const L = detectLayout(header);
+      const cols = off ? L : Object.assign(shiftLayout(L, -1), { no: -1 });
       Library.syncCurrent();
       Library.current = '';
       $('bookSelect').value = '';
-      setLoaded(body.map(r => makeItem(r, off)),
-                off ? 'Excelから読み込み（A列=問題番号）' : 'Excelから読み込み');
+      setLoaded(body.map(r => makeItem(r, cols)),
+                'Excelから読み込み' + (off ? '（A列=番号）' : '') + (L === LAYOUT_OLD ? '／旧形式として判定' : ''));
       $('saveBookBtn').disabled = loaded.length === 0;
       if (!$('bookName').value) $('bookName').value = file.name.replace(/\.[^.]+$/, '');
       $('bookMsg').textContent = 'Excelから読み込んだ内容を使用中です。';
@@ -1027,8 +1155,8 @@ function stamp() {
 
 $('expJsonBtn').addEventListener('click', () => {
   Library.syncCurrent();
-  const data = { type: 'drill-backup', version: 1, savedAt: new Date().toISOString(),
-                 books: Library.books, stats: Stats.data };
+  const data = { type: 'drill-backup', version: 2, savedAt: new Date().toISOString(),
+                 books: Library.books, stats: Stats.data, alts: Alts.data };
   download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
            `ドリル全データ_${stamp()}.json`);
 });
@@ -1065,6 +1193,7 @@ $('impJsonInput').addEventListener('change', (e) => {
         });
         Stats.save();
       }
+      Alts.merge(d.alts);
       Library.refreshUI();
       $('bookMsg').textContent = `${add} 件の問題集を読み込みました。使う問題集を選んでください。`;
     } catch (err) {
@@ -1077,11 +1206,11 @@ $('impJsonInput').addEventListener('change', (e) => {
 
 $('expXlsxBtn').addEventListener('click', () => {
   if (!loaded.length) { alert('先に問題集を選ぶか、Excelを読み込んでください。'); return; }
-  const rows = [['問題番号','日本語','英語','例文の日本語','例文の英語','出題数','正解数','不正解数']];
-  loaded.forEach(x => rows.push([x.no, x.jp, x.en, x.exJp, x.exEn, x.tries, x.ok, x.ng]));
+  const rows = [['番号','質問','答え','同音異義語答え','参考（例文）英語','備考（例文の日本語）','出題数','正解数','不正解数']];
+  loaded.forEach(x => rows.push([x.no, x.jp, x.en, (x.alts || []).join('、'), x.exEn, x.exJp, x.tries, x.ok, x.ng]));
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '単語');
-  XLSX.writeFile(wb, `${Library.current || '単語表'}_成績_${stamp()}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '問題');
+  XLSX.writeFile(wb, `${Library.current || '問題表'}_成績_${stamp()}.xlsx`);
 });
 
 /* ===== 画面イベント ===== */

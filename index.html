@@ -347,7 +347,7 @@ const Library = {
   },
   save() {
     try { localStorage.setItem(this.KEY, JSON.stringify(this.books)); return true; }
-    catch (e) { alert('保存できませんでした（容量オーバーの可能性）：' + e.message); return false; }
+    catch (e) { alert('保存できませんで했ました（容量オーバーの可能性）：' + e.message); return false; }
   },
   names() { return Object.keys(this.books).sort(); },
   put(name, items) {
@@ -358,24 +358,26 @@ const Library = {
     return this.save();
   },
   remove(name) { delete this.books[name]; this.save(); },
+  /* 中身が空のときは書き戻さない（古いデータで上書きするのを防ぐ） */
   syncCurrent() {
-    if (this.current && this.books[this.current]) this.put(this.current, loaded);
+    if (this.current && this.books[this.current] && loaded.length) this.put(this.current, loaded);
   },
+  /* 表示中の選択肢と、実際に使っている問題集を必ず一致させる */
   refreshUI() {
     const sel = $('bookSelect');
     const names = this.names();
     sel.innerHTML = '';
-    if (!names.length) {
-      sel.innerHTML = '<option value="">（まだ保存されていません）</option>';
-    } else {
-      names.forEach(n => {
-        const o = document.createElement('option');
-        o.value = n;
-        o.textContent = `${n}（${this.books[n].length}問）`;
-        sel.appendChild(o);
-      });
-      if (this.current) sel.value = this.current;
-    }
+    const head = document.createElement('option');
+    head.value = '';
+    head.textContent = names.length ? '（使う問題集を選んでください）' : '（まだ保存されていません）';
+    sel.appendChild(head);
+    names.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n;
+      o.textContent = `${n}（${this.books[n].length}問）`;
+      sel.appendChild(o);
+    });
+    sel.value = this.books[this.current] ? this.current : '';
   }
 };
 Library.load();
@@ -897,7 +899,35 @@ function makeItem(r, off) {
     remind: false
   };
 }
+
+/* 読み込み済みデータを完全に捨てる */
+function clearLoaded() {
+  loaded = [];
+  S.all = []; S.queue = []; S.session = []; S.cur = null;
+  $('startBtn').disabled = true;
+  $('setupMsg').textContent = '使う問題集が選ばれていません。';
+  $('rangeHint').textContent = '空欄なら全範囲';
+  $('countHint').textContent = '空欄なら全問';
+}
+
+/* 一覧で選ばれている問題集を、実際に使うデータへ反映する */
+function applyBook(name, silent) {
+  if (!name || !Library.books[name]) {
+    if (!silent) alert('問題集を選んでください。');
+    return false;
+  }
+  Library.syncCurrent();
+  Library.current = name;
+  setLoaded(Library.books[name].map(r => makeItem(r)), `「${name}」`);
+  $('bookSelect').value = name;
+  $('bookMsg').textContent = `「${name}」を使用中です。`;
+  return true;
+}
+
 function setLoaded(items, label) {
+  S.all = []; S.queue = []; S.session = []; S.cur = null;
+  $('optFrom').value = '';
+  $('optTo').value = '';
   loaded = items.filter(x => x.jp && x.en);
   loaded.forEach((x, i) => { if (!x.no) x.no = i + 1; });
   loaded.forEach(x => Stats.attach(x));
@@ -913,6 +943,7 @@ function setLoaded(items, label) {
 
 $('fileInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
+  e.target.value = '';
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
@@ -923,11 +954,14 @@ $('fileInput').addEventListener('change', (e) => {
       const body = rows.slice(1).filter(r => r && r.length);
       const numish = body.filter(r => String(r[0] || '').trim() !== '' && !isNaN(Number(r[0]))).length;
       const off = (body.length && numish >= body.length * 0.8) ? 1 : 0;
+      Library.syncCurrent();
       Library.current = '';
+      $('bookSelect').value = '';
       setLoaded(body.map(r => makeItem(r, off)),
                 off ? 'Excelから読み込み（A列=問題番号）' : 'Excelから読み込み');
       $('saveBookBtn').disabled = loaded.length === 0;
       if (!$('bookName').value) $('bookName').value = file.name.replace(/\.[^.]+$/, '');
+      $('bookMsg').textContent = 'Excelから読み込んだ内容を使用中です。';
     } catch (err) {
       $('setupMsg').textContent = '読み込みに失敗しました：' + err.message;
     }
@@ -946,12 +980,11 @@ $('saveBookBtn').addEventListener('click', () => {
   }
 });
 
-$('useBookBtn').addEventListener('click', () => {
-  const name = $('bookSelect').value;
-  if (!name || !Library.books[name]) { alert('問題集を選んでください。'); return; }
-  Library.current = name;
-  setLoaded(Library.books[name].map(r => makeItem(r)), `「${name}」`);
-  $('bookMsg').textContent = `「${name}」を選択中です。`;
+$('useBookBtn').addEventListener('click', () => { applyBook($('bookSelect').value); });
+
+$('bookSelect').addEventListener('change', () => {
+  const v = $('bookSelect').value;
+  if (v) applyBook(v, true); else clearLoaded();
 });
 
 $('renameBookBtn').addEventListener('click', () => {
@@ -971,8 +1004,9 @@ $('delBookBtn').addEventListener('click', () => {
   const name = $('bookSelect').value;
   if (!name || !Library.books[name]) return;
   if (!confirm(`「${name}」を削除します。よろしいですか？`)) return;
+  const wasCurrent = (Library.current === name);
   Library.remove(name);
-  if (Library.current === name) Library.current = '';
+  if (wasCurrent) { Library.current = ''; clearLoaded(); }
   Library.refreshUI();
   $('bookMsg').textContent = `「${name}」を削除しました。`;
 });
@@ -1007,6 +1041,9 @@ $('impJsonInput').addEventListener('change', (e) => {
     try {
       const d = JSON.parse(ev.target.result);
       if (!d || !d.books) throw new Error('この形式のファイルには対応していません');
+      Library.syncCurrent();
+      Library.current = '';
+      clearLoaded();
       let add = 0;
       Object.keys(d.books).forEach(name => {
         let key = name;
@@ -1029,7 +1066,7 @@ $('impJsonInput').addEventListener('change', (e) => {
         Stats.save();
       }
       Library.refreshUI();
-      $('bookMsg').textContent = `${add} 件の問題集を読み込みました。`;
+      $('bookMsg').textContent = `${add} 件の問題集を読み込みました。使う問題集を選んでください。`;
     } catch (err) {
       alert('読み込みに失敗しました：' + err.message);
     }
@@ -1048,7 +1085,13 @@ $('expXlsxBtn').addEventListener('click', () => {
 });
 
 /* ===== 画面イベント ===== */
-$('startBtn').addEventListener('click', () => { Speaker.unlock(); Drill.begin(loaded); });
+$('startBtn').addEventListener('click', () => {
+  const sel = $('bookSelect').value;
+  if (sel && sel !== Library.current && !applyBook(sel)) return;
+  if (!loaded.length) { alert('先に問題集を選ぶか、Excelを読み込んでください。'); return; }
+  Speaker.unlock();
+  Drill.begin(loaded);
+});
 $('replayBtn').addEventListener('click', () => Drill.replay());
 $('okBtn').addEventListener('click', () => Drill.forceCorrect());
 $('nextBtn').addEventListener('click', () => Drill.skip());
@@ -1085,7 +1128,9 @@ $('backBtn').addEventListener('click', () => {
 });
 
 AnsLang.init();
+Library.current = '';
 Library.refreshUI();
+clearLoaded();
 if (!Voice.setup()) {
   $('setupMsg').textContent = 'このブラウザは音声入力に対応していません（Chrome推奨）。テキスト入力でも使えます。';
 }
